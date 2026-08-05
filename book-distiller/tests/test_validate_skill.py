@@ -63,3 +63,11 @@ def test_reference_to_missing_file(tmp_path):
     body = VALID + "\n见 [缺失文件](references/nope.md)\n"
     p = write_skill(tmp_path, body)
     assert validate_skill(p) != []
+
+
+def test_bare_filename_matches_cwd_dir(tmp_path, monkeypatch):
+    # 以相对文件名调用（如 scripts/validate_skill.py SKILL.md）时，
+    # name 应与文件所在目录一致，而不是与空串比较。
+    p = write_skill(tmp_path, VALID)
+    monkeypatch.chdir(p.parent)
+    assert validate_skill(Path("SKILL.md")) == []

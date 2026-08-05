@@ -40,8 +40,9 @@ def validate_skill(path: Path) -> list[str]:
     name = fm.get("name", "")
     if not NAME_RE.match(name):
         errors.append(f"name '{name}' 不合法：需小写 kebab-case")
-    if name and name != path.parent.name:
-        errors.append(f"name '{name}' 与目录名 '{path.parent.name}' 不一致")
+    parent_name = path.resolve().parent.name
+    if name and name != parent_name:
+        errors.append(f"name '{name}' 与目录名 '{parent_name}' 不一致")
     desc = fm.get("description", "")
     if not desc:
         errors.append("description 为空")
