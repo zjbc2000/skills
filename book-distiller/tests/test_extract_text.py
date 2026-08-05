@@ -2,10 +2,11 @@
 from __future__ import annotations
 import sys
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 import fitz
-from extract_text import extract_toc, extract_text, pdf_is_scanned, extract_to_markdown
+from extract_text import extract_toc, extract_text, pdf_is_scanned, extract_to_markdown, main
 
 
 def _gen_text_pdf(path: Path, with_toc: bool = True) -> None:
@@ -65,3 +66,15 @@ def test_extract_to_markdown_no_toc(tmp_path):
     out = tmp_path / "book.md"
     extract_to_markdown(p, out)
     assert "Chapter 0 content" in out.read_text(encoding="utf-8")
+
+
+def test_main_docling_not_installed(tmp_path, capsys):
+    p = tmp_path / "book.pdf"
+    _gen_text_pdf(p)
+    out = tmp_path / "book.md"
+    # 本机未装 docling；mock sys.modules 强制走未安装报错路径，任何环境都稳定。
+    with mock.patch.dict(sys.modules, {"docling": None}):
+        code = main([str(p), "-o", str(out), "--engine", "docling"])
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "pip install docling" in err
