@@ -1,0 +1,8 @@
+# 版权书籍全文——不入库（微信读书导出文本，涉及版权）
+inputs/
+outputs/ai-programmer-fullstack/raw-book.md
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
