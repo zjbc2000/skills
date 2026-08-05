@@ -18,7 +18,7 @@ description: "把编程书籍（PDF / Markdown / 微信读书链接）拆解为�
 |---|---|
 | PDF | `python3 scripts/extract_text.py <pdf> -o <out.md>`；扫描版会提示换 MinerU |
 | Markdown | 直接用 |
-| 微信读书链接/书名 | `python3 scripts/weread_fetch.py <链接> --exporter=<导出器目录>/export_precise.py --workdir=<导出器目录>`（强制全文导出） |
+| 微信读书链接（书名请自行转为链接） | `python3 scripts/weread_fetch.py <链接> --exporter=<导出器目录>/export_precise.py --workdir=<导出器目录>`（强制全文导出） |
 
 **微信读书前置条件**：导出器需先 `git clone` 到固定目录（如 `~/tools/weread-exporter/`），`<导出器目录>` 填该绝对路径。因为 `weread_fetch.py` 的 `--workdir`/`--exporter` 默认是相对路径，若 cwd 不是导出器目录会 FileNotFoundError，所以必须显式传导出器绝对路径。
 
@@ -30,7 +30,7 @@ description: "把编程书籍（PDF / Markdown / 微信读书链接）拆解为�
 - 判断输入类型，按上表统一成干净 Markdown + 章节树。清理 Canvas 导出的断行拼接痕迹。
 
 ### Stage 2: 结构分析
-- 用 Markdown 标题层级（或 PDF 书签 TOC）识别章节边界。
+- 用 Markdown 标题层级（或 PDF 书签 TOC）识别章节边界；无书签 PDF 的提取产物是无标题纯文本，需人工指认章节边界。
 - 每章读原文，生成 800–1200 token 摘要（map）：**密度优先、实践者视角（When X use Y）、不抄原文**。
 
 ### Stage 3: 主题划分 ★检查点1
@@ -45,7 +45,7 @@ description: "把编程书籍（PDF / Markdown / 微信读书链接）拆解为�
 - **强制停下**：生成首个样例后让用户确认格式，其余自动跑。
 
 ### Stage 6: 自检与交付
-- 运行 `python3 scripts/validate_skill.py outputs/<book-slug>/*/SKILL.md` 校验所有子 skill。
+- 运行 `python3 scripts/validate_skill.py outputs/<book-slug>/SKILL.md outputs/<book-slug>/*/SKILL.md` 校验总入口与所有子 skill。
 - plugin 形态额外运行 `python3 scripts/validate_plugin.py outputs/<book-slug>`。
 - 产出汇总报告：主题清单、各 skill 说明、覆盖范围、下一步建议。
 

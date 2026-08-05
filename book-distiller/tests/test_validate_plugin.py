@@ -65,3 +65,18 @@ def test_invalid_json(tmp_path):
     (d / ".claude-plugin").mkdir(parents=True)
     (d / ".claude-plugin" / "plugin.json").write_text("{not json", encoding="utf-8")
     assert validate_plugin(d) != []
+
+
+def test_plugin_json_top_level_array(tmp_path):
+    d = tmp_path / "p"
+    (d / ".claude-plugin").mkdir(parents=True)
+    (d / ".claude-plugin" / "plugin.json").write_text("[1, 2, 3]", encoding="utf-8")
+    assert validate_plugin(d) != []
+
+
+def test_marketplace_top_level_array(tmp_path):
+    assert validate_plugin(_make_plugin_dir(tmp_path, marketplace=[1, 2, 3])) != []
+
+
+def test_version_with_suffix_rejected(tmp_path):
+    assert validate_plugin_json({**VALID_PLUGIN, "version": "0.1.0abc"}) != []

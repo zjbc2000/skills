@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 PLUGIN_NAME_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
-SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+")
+SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
 
 def validate_plugin_json(data: dict) -> list[str]:
@@ -47,6 +47,8 @@ def validate_plugin(plugin_dir: Path) -> list[str]:
         data = json.loads(plugin_file.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         return [f"plugin.json 不是合法 JSON: {e}"]
+    if not isinstance(data, dict):
+        return ["plugin.json 顶层必须是 JSON 对象"]
     errors += validate_plugin_json(data)
     marketplace_file = plugin_dir / ".claude-plugin" / "marketplace.json"
     if marketplace_file.exists():
@@ -55,7 +57,10 @@ def validate_plugin(plugin_dir: Path) -> list[str]:
         except json.JSONDecodeError as e:
             errors.append(f"marketplace.json 不是合法 JSON: {e}")
         else:
-            errors += validate_marketplace_json(mdata)
+            if not isinstance(mdata, dict):
+                errors.append("marketplace.json 顶层必须是 JSON 对象")
+            else:
+                errors += validate_marketplace_json(mdata)
     return errors
 
 
