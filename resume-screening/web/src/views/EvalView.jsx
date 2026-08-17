@@ -48,6 +48,7 @@ export default function EvalView() {
   return (
     <>
       <h1>评测</h1>
+      <p className="eyebrow">// 人工标注 manifest 记录，迭代阈值与指标</p>
 
       {error && <p className="error" role="alert">{error}</p>}
       {notice && <p className="notice">{notice}</p>}

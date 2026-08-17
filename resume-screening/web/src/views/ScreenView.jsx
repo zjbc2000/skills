@@ -52,6 +52,7 @@ export default function ScreenView({ onRolesLoaded }) {
   return (
     <>
       <h1>筛简历</h1>
+      <p className="eyebrow">// 批量筛选：多选 PDF/docx，或上传 zip 压缩包</p>
 
       <section className="card">
         <form onSubmit={onScreen}>

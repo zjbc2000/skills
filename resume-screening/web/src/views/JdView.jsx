@@ -71,6 +71,7 @@ export default function JdView({ onSaved }) {
   return (
     <>
       <h1>JD 管理</h1>
+      <p className="eyebrow">// 从 JD 原文抽取结构化字段，确认后注册到岗位下拉</p>
 
       <section className="card">
         <h2>从 JD 原文抽取字段</h2>

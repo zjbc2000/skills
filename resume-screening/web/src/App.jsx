@@ -29,7 +29,7 @@ function Sidebar({ active, onSelect }) {
     <aside className="sidebar">
       <div className="brand">
         <LogoMark />
-        <span>AE 工作台</span>
+        <span>~/ae</span>
       </div>
       <nav className="nav" aria-label="主导航">
         {NAV.map((item) => (

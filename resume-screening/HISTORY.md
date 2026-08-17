@@ -4,6 +4,16 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.19 — 2026-08-17
+
+### Changed
+- AE 工作台前端重构为极客极简风（frontend-styler minimal 方向 + ui-ux-pro-max Terminal CLI Monospace 设计系统）：
+  - 全量 token 化：`--bg`/`--surface`/`--accent` 等色彩 + 12/14/16 三档字阶 + 4px 间距刻度 + 150ms 动效（一次定义，组件只读 token）
+  - OLED 近黑底（#020617）替代原 slate 底；单一成功绿 accent，去渐变色块
+  - 侧栏 nav active 态改为 accent 左竖线 + 高对比文字（去背景块）；brand 改为 `~/ae` 终端路径
+  - 区块改 hairline 分区 + 弱背景；数据表 tabular 数字 + uppercase 表头；日志面板终端感（`›` 提示符 + 左竖线）
+  - 页面标题加 `›` 前缀，三页标题下加 `//` 极客注释行（eyebrow）
+
 ## V0.18 — 2026-08-17
 
 ### Fixed
