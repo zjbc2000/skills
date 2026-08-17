@@ -1,0 +1,4 @@
+# 判定阈值（SPEC §3.3）——初始值，用真实数据集 + 阈值扫描校准
+general: 8
+specific: 8
+total: 16

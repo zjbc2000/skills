@@ -1,0 +1,15 @@
+# 模型注册表（SPEC §5.1）
+providers:
+  ark_coding:
+    base_url: https://ark.cn-beijing.volces.com/api/coding/v3
+    api_key_env: ARK_API_KEY
+    models: [deepseek-v4-flash, doubao-seed-2.0-lite]
+  deepseek_official:
+    base_url: https://api.deepseek.com
+    api_key_env: DEEPSEEK_API_KEY
+    models: [deepseek-v4-flash, deepseek-v4-pro]
+
+# 默认模型：降级链第一候选
+default:
+  provider: ark_coding
+  model: deepseek-v4-flash

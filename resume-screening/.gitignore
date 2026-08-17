@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 环境与凭据
+.env
+*.env.local
+
+# 个人数据（简历/标注）不入库
+datasets/*
+!datasets/.gitkeep
+
+# 运行时产物
+var/
+outputs/
+
+# 票据草稿（.scratch 是临时工作区）
+.scratch/
+
+# macOS
+.DS_Store

@@ -1,0 +1,4 @@
+# 工具注册表（SPEC §5.3）
+doc_loader:
+  primary: layout_parsing
+  fallback: [local_pymupdf, local_paddleocr]
