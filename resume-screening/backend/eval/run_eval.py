@@ -92,12 +92,16 @@ def build_eval_data(records: List[dict], cfg, fixed_general=None, total_range=No
     if not labeled:
         return {
             "n": len(records), "labeled": 0, "unlabeled": unlabeled,
+            "thresholds": {k: cfg.thresholds[k] for k in ("general", "specific", "total")},
             "records": [row(r) for r in records],
             "metrics": {}, "confusion": {}, "threshold_scan": [], "best": None,
             "discrimination": [], "quotation_accuracy": {"ratio": 0.0},
         }
     fixed_general = fixed_general if fixed_general is not None else int(cfg.thresholds["general"])
+    # 扫描下界围绕当前配置的总阈值（-30，最低 0），避免从 0 起扫导致推荐无意义的低阈值
     lo, hi = (0, _max_total(labeled)) if total_range is None else total_range
+    if total_range is None:
+        lo = max(0, int(cfg.thresholds["total"]) - 30)
 
     c = confusion(labeled)
     q_exact, q_total, q_ratio = quotation_accuracy(records)
@@ -106,6 +110,7 @@ def build_eval_data(records: List[dict], cfg, fixed_general=None, total_range=No
         "n": len(records),
         "labeled": len(labeled),
         "unlabeled": unlabeled,
+        "thresholds": {k: cfg.thresholds[k] for k in ("general", "specific", "total")},
         "metrics": {
             "accuracy": accuracy(c), "precision": precision(c),
             "recall": recall(c), "f1": f1(c), "n": len(labeled),

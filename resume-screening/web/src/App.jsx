@@ -35,7 +35,7 @@ function Sidebar({ active, onSelect }) {
     <aside className="sidebar">
       <div className="brand">
         <LogoMark />
-        <span>ae工作台</span>
+        <span>AE工作台</span>
       </div>
       <nav className="nav" aria-label="主导航">
         {NAV.map((item) => (
@@ -53,7 +53,7 @@ function Sidebar({ active, onSelect }) {
         <div className="avatar" aria-hidden="true">Z</div>
         <div className="account-meta">
           <div className="account-name">zed</div>
-          <div className="account-role">筛简历管理员</div>
+          <div className="account-role">AE</div>
         </div>
       </div>
     </aside>
@@ -62,10 +62,16 @@ function Sidebar({ active, onSelect }) {
 
 function LogoMark() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-      <rect x="9" y="3" width="6" height="4" rx="1" />
-      <path d="m9 14 2 2 4-4" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* 终端窗口 */}
+      <rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M3 8h18" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="6.5" cy="6" r="0.9" fill="#ef4444" />
+      <circle cx="9.5" cy="6" r="0.9" fill="#fbbf24" />
+      <circle cx="12.5" cy="6" r="0.9" fill="#22c55e" />
+      {/* AE + 光标 */}
+      <text x="7" y="16" fontSize="7" fontFamily="JetBrains Mono, monospace" fontWeight="500" fill="currentColor">AE</text>
+      <rect x="14.5" y="12.5" width="3.5" height="5" fill="#22c55e" opacity="0.9" />
     </svg>
   )
 }

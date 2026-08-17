@@ -94,7 +94,8 @@ export default function JdModal({ jd, onClose, onSave, busy }) {
                 onChange={(e) => setJdRaw(e.target.value)}
                 placeholder="粘贴 JD 原文，LLM 抽取 position / skills / red_lines"
               />
-              <button type="button" className="btn-secondary" onClick={onExtract} disabled={extracting}>
+              <button type="button" className="extract-btn" onClick={onExtract} disabled={extracting}>
+                <DownloadIcon />
                 {extracting ? '抽取中…' : '抽取字段'}
               </button>
               {(extracting || logs.length > 0) && (
@@ -136,5 +137,15 @@ export default function JdModal({ jd, onClose, onSave, busy }) {
         </form>
       </div>
     </div>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M12 3v12" />
+      <path d="m6 11 6 6 6-6" />
+      <path d="M4 21h16" />
+    </svg>
   )
 }

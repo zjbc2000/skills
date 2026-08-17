@@ -415,3 +415,10 @@ def test_dashboard_models_and_switch_api(client, tmp_path, monkeypatch):
     c = client.post("/dashboard/clear", headers=_auth())
     assert c.status_code == 200
     assert client.get("/dashboard", headers=_auth()).json()["summary"]["n"] == 0
+
+
+def test_eval_returns_current_thresholds(client):
+    """/eval 响应带当前生效阈值（G/S/T），供评测页展示。"""
+    body = client.get("/eval", headers=_auth()).json()
+    assert set(body["thresholds"]) == {"general", "specific", "total"}
+    assert isinstance(body["thresholds"]["general"], int)

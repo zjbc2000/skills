@@ -60,7 +60,16 @@ export default function EvalView() {
             {busy ? '计算中…' : '刷新'}
           </button>
         </div>
-        {data && data.labeled > 0 && (
+        {data && (
+          <div className="eval-thresholds">
+            当前生效阈值：
+            <span className="tag tag-pass">G ≥ {data.thresholds?.general}</span>
+            <span className="tag tag-pass">T ≥ {data.thresholds?.total}</span>
+            <span className="tag tag-pass">S ≥ {data.thresholds?.specific}</span>
+            <span className="muted">（可用环境变量 THRESH_GENERAL / THRESH_SPECIFIC / THRESH_TOTAL 覆盖）</span>
+          </div>
+        )}
+        {data && data.labeled > 0 && data.best && (
           <>
             <div className="metrics">
               <Metric label="准确率" value={pct(data.metrics.accuracy)} />
@@ -70,9 +79,9 @@ export default function EvalView() {
               <Metric label="引用准确率" value={pct(data.quotation_accuracy.ratio)} />
             </div>
             <div className="row-between">
-              <div className="muted">最优总分阈值 {data.best?.threshold}（准确率 {pct(data.best?.accuracy ?? 0)}）</div>
-              <button onClick={onApplyThreshold} disabled={busy || !data.best}>
-                应用建议阈值 T≥{data.best?.threshold}
+              <div className="muted">最优总分阈值 {data.best.threshold}（准确率 {pct(data.best.accuracy)}）</div>
+              <button onClick={onApplyThreshold} disabled={busy}>
+                应用建议阈值 T≥{data.best.threshold}
               </button>
             </div>
             <details className="detail">
@@ -83,7 +92,7 @@ export default function EvalView() {
                 </thead>
                 <tbody>
                   {(data.threshold_scan || []).map((row) => (
-                    <tr key={row.threshold} className={row.threshold === data.best?.threshold ? 'hl' : ''}>
+                    <tr key={row.threshold} className={row.threshold === data.best.threshold ? 'hl' : ''}>
                       <td>{row.threshold}</td>
                       <td>{row.n_pass}</td>
                       <td>{row.n_fail}</td>
@@ -94,6 +103,9 @@ export default function EvalView() {
               </table>
             </details>
           </>
+        )}
+        {data && data.labeled > 0 && !data.best && (
+          <p className="muted">已标注 {data.labeled} 条但未得出最优阈值（样本或标注过少）。</p>
         )}
         {data && data.labeled === 0 && (
           <p className="muted">

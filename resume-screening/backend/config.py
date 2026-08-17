@@ -1,6 +1,7 @@
 """注册表配置加载：models.yml / tools.yml / thresholds.yml。"""
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
@@ -45,6 +46,15 @@ def load_config(config_dir: Union[Path, str, None] = None) -> AppConfig:
     models = _load_yaml(base / "models.yml")
     tools = _load_yaml(base / "tools.yml")
     thresholds = _load_yaml(base / "thresholds.yml")
+    # 环境变量覆盖 G/S/T（如 THRESH_GENERAL=40），便于部署与动态调整，不落配置文件
+    for key, env in (("general", "THRESH_GENERAL"), ("specific", "THRESH_SPECIFIC"),
+                     ("total", "THRESH_TOTAL")):
+        raw = os.environ.get(env)
+        if raw is not None:
+            try:
+                thresholds[key] = int(raw)
+            except ValueError as e:
+                raise ConfigError(f"{env}: 非法整数 {raw!r}") from e
     missing = [k for k in THRESHOLD_KEYS if not isinstance(thresholds.get(k), (int, float))]
     if missing:
         raise ConfigError(f"thresholds.yml: 缺失或非法阈值: {missing}")

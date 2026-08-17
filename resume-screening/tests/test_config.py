@@ -37,3 +37,23 @@ def test_invalid_yml_raises(tmp_path):
     (tmp_path / "thresholds.yml").write_text("general: 1\n", encoding="utf-8")
     with pytest.raises(ConfigError):
         load_config(tmp_path)
+
+
+def test_threshold_env_override(monkeypatch, tmp_path):
+    """THRESH_GENERAL/SPECIFIC/TOTAL 环境变量覆盖 thresholds.yml。"""
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "models.yml").write_text(
+        "providers:\n  p:\n    base_url: http://x\n    api_key_env: K\n    models: [m]\n"
+        "default:\n  provider: p\n  model: m\n", encoding="utf-8")
+    (cfg_dir / "tools.yml").write_text("doc_loader:\n  primary: local_pymupdf\n", encoding="utf-8")
+    (cfg_dir / "thresholds.yml").write_text("general: 40\nspecific: 20\ntotal: 45\n", encoding="utf-8")
+
+    monkeypatch.setenv("THRESH_GENERAL", "55")
+    monkeypatch.setenv("THRESH_TOTAL", "70")
+    cfg = load_config(cfg_dir)
+    assert cfg.thresholds == {"general": 55, "specific": 20, "total": 70}
+
+    monkeypatch.setenv("THRESH_GENERAL", "abc")
+    with pytest.raises(ConfigError):
+        load_config(cfg_dir)
