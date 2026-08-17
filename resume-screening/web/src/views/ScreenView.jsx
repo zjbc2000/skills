@@ -79,12 +79,21 @@ export default function ScreenView({ onRolesLoaded }) {
             </label>
             <label className="field">
               <span>简历（可多选 pdf / docx，或上传 zip 包）</span>
-              <input
-                type="file"
-                accept=".pdf,.docx,.zip"
-                multiple
-                onChange={(e) => setFiles(Array.from(e.target.files || []))}
-              />
+              <div className="file-picker">
+                <label htmlFor="resume-files" className="btn-secondary">选择文件…</label>
+                <input
+                  id="resume-files"
+                  type="file"
+                  accept=".pdf,.docx,.zip"
+                  multiple
+                  onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                />
+                {files.length > 0 ? (
+                  <span className="file-count">{files.length} 个文件</span>
+                ) : (
+                  <span className="muted">未选择</span>
+                )}
+              </div>
             </label>
           </div>
           <button className="primary" disabled={busy}>
