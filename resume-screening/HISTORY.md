@@ -4,6 +4,12 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.17 — 2026-08-17
+
+### Added
+- `scripts/start.sh all`：一键启动 API + 前端 + 飞书 bot（含 bot 长连接就绪检查）；`start` 仅 API + 前端；`stop/status` 覆盖三服务
+- 说明：评估 pipeline（`backend.eval.run_eval`）是一次性批处理 CLI，非常驻服务，不在 start.sh 托管
+
 ## V0.16 — 2026-08-17
 
 ### Added

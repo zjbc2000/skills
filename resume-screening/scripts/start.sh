@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# start.sh — 一键启动/停止 AE 工作台（API + 前端热重载）
+# start.sh — 一键启动/停止 AE 工作台（API + 前端热重载，可选飞书 bot）
 #
 # 用法:
 #   ./scripts/start.sh start   启动 API（backend.cli.api）+ 前端（vite dev，HMR 热重载）
-#   ./scripts/start.sh stop    停止两者
+#   ./scripts/start.sh all     启动全部：API + 前端 + 飞书 bot（backend.cli.bot）
+#   ./scripts/start.sh stop    停止所有已启动的服务
 #   ./scripts/start.sh status  查看运行状态
 #
 # 端口读项目根 .env（API_HOST / API_PORT / WEB_PORT），缺省 127.0.0.1:8000 / 5173。
-# 日志落在 var/log/{api,web}.log，pid 落在 var/run/{api,web}.pid。
+# 日志落在 var/log/{api,web,bot}.log，pid 落在 var/run/{api,web,bot}.pid。
+# 评估 pipeline（backend.eval.run_eval）是一次性批处理 CLI，不在此托管。
 
 set -euo pipefail
 
@@ -16,6 +18,7 @@ RUN_DIR="$ROOT/var/run"
 LOG_DIR="$ROOT/var/log"
 API_PID="$RUN_DIR/api.pid"
 WEB_PID="$RUN_DIR/web.pid"
+BOT_PID="$RUN_DIR/bot.pid"
 ENV_FILE="$ROOT/.env"
 mkdir -p "$RUN_DIR" "$LOG_DIR"
 
@@ -79,11 +82,28 @@ wait_health() {
   return 1
 }
 
+# 飞书 bot 无 health 端点，轮询日志里 "bot 启动" 标记确认长连接已建立
+wait_bot_ready() {
+  local logfile=$1
+  for _ in $(seq 1 50); do
+    if grep -q "bot 启动" "$LOG_DIR/$logfile" 2>/dev/null; then
+      return 0
+    fi
+    sleep 0.2
+  done
+  return 1
+}
+
 start_all() {
+  local with_bot=$1
   start_one "api" "$API_PID" "api.log" \
     "cd \"$ROOT\" && exec python3 -m backend.cli.api"
   start_one "web" "$WEB_PID" "web.log" \
     "cd \"$ROOT/web\" && exec \"$ROOT/web/node_modules/.bin/vite\""
+  if [ "$with_bot" = "1" ]; then
+    start_one "bot" "$BOT_PID" "bot.log" \
+      "cd \"$ROOT\" && exec python3 -m backend.cli.bot"
+  fi
 
   echo "---"
   if wait_health "$API_HOST" "$API_PORT"; then
@@ -92,24 +112,34 @@ start_all() {
     echo "API    http://$API_HOST:$API_PORT （未响应 /health，见 var/log/api.log）"
   fi
   echo "前端   http://localhost:$WEB_PORT （vite HMR 热重载）"
+  if [ "$with_bot" = "1" ]; then
+    if wait_bot_ready "bot.log"; then
+      echo "Bot   已连接（长连接就绪，见 var/log/bot.log）"
+    else
+      echo "Bot   未就绪（见 var/log/bot.log，多半是飞书凭据/网络问题）"
+    fi
+  fi
 }
 
 stop_all() {
+  stop_one "bot" "$BOT_PID"
   stop_one "web" "$WEB_PID"
   stop_one "api" "$API_PID"
 }
 
 status_all() {
-  local a w
-  if is_running "$API_PID"; then a="运行中 (pid $(cat "$API_PID"))"; else a="已停止"; fi
-  if is_running "$WEB_PID"; then w="运行中 (pid $(cat "$WEB_PID"))"; else w="已停止"; fi
-  echo "API  $a"
-  echo "Web  $w"
+  local s
+  for pair in "API:$API_PID" "Web:$WEB_PID" "Bot:$BOT_PID"; do
+    local name="${pair%%:*}" pidfile="${pair#*:}"
+    if is_running "$pidfile"; then s="运行中 (pid $(cat "$pidfile"))"; else s="已停止"; fi
+    printf '%-5s%s\n' "$name" "$s"
+  done
 }
 
 case "${1:-}" in
-  start)  start_all ;;
+  start)  start_all 0 ;;
+  all)    start_all 1 ;;
   stop)   stop_all ;;
   status) status_all ;;
-  *) echo "用法: $0 {start|stop|status}" >&2; exit 2 ;;
+  *) echo "用法: $0 {start|all|stop|status}" >&2; exit 2 ;;
 esac
