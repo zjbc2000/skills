@@ -4,6 +4,13 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.5 — 2026-08-17
+
+### Added
+- 飞书长连接双向 bot：`python -m backend.cli.bot`（企业自建应用 + WebSocket，订阅 im.message.receive_v1，@机器人 + 发 PDF → 下载 → 筛 → 纯文本回复；chat 白名单；3 秒回执异步化）
+- 抽取共用筛简历管线 `screening.pipeline.screen_file`（CLI 与 bot 复用，DRY）
+- 统一频道接口 `Channel.notify`（SPEC §5.4）
+
 ## V0.4 — 2026-08-17
 
 ### Added

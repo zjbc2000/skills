@@ -10,7 +10,10 @@
 
 ## 当前版本
 
-**V0.4** — quotation 校验 + 评估 pipeline，闭环可用。
+**V0.5** — 飞书长连接 bot 接入。
+
+### 飞书集成（v0.5 可用，需控制台配置）
+`python -m backend.cli.bot` —— 企业自建应用 + 长连接（WebSocket，无需公网入站），群内 @bot 发 PDF → 自动筛 → 纯文本回复。前置：飞书开放平台创建企业自建应用 → 启用机器人 + 权限（im:message / send_as_bot / group_at_msg / im:resource）→ 事件订阅切换为「使用长连接接收事件」→ `.env` 配置 FEISHU_APP_ID/SECRET/CHAT_WHITELIST/RESUME_DEFAULT_JD。
 
 ## 功能
 

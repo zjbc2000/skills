@@ -11,21 +11,15 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-
 from ..config import load_config
-from ..doc_loader.base import LoaderError, doc_to_text, resolve_loader_names
-from ..persistence.jd_map import jd_text, load_jd_map
+from ..doc_loader.base import LoaderError
 from ..persistence.manifest import append_record, build_record
-from ..registry.fake import fake_call_fn
-from ..registry.llm_client import FailedQueue, LLMClient, LLMError
-from ..registry.openai_adapter import make_call_fn
-from ..scoring.engine import MODES, assess
-from ..scoring.prompts import build_prompt
-from ..scoring.schema import validate_llm_output
-from ..verify.quotation import verify_snapshot
+from ..registry.llm_client import FailedQueue, LLMError
+from ..scoring.engine import MODES
+from ..screening.pipeline import ScreeningError, screen_file
 
-DEFAULT_DATASETS = Path(__file__).resolve().parent.parent.parent / "datasets"
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+DEFAULT_DATASETS = REPO_ROOT / "datasets"
 
 
 def main(argv=None) -> int:
@@ -48,46 +42,27 @@ def main(argv=None) -> int:
 
     if not args.jd or not args.resume:
         parser.error("需要 <简历.pdf> 与 --jd <岗位key>（或用 --list-failed 查看失败队列）")
-    try:
-        jd_map = load_jd_map(datasets / "jd_map.yml")
-    except FileNotFoundError:
-        print(f"缺少 jd_map: {datasets / 'jd_map.yml'}", file=sys.stderr)
-        return 1
-    if args.jd not in jd_map:
-        print(f"jd_map 中不存在岗位: {args.jd}", file=sys.stderr)
-        return 1
 
     cfg = load_config()
     try:
-        doc = doc_to_text(args.resume, resolve_loader_names(cfg))
+        result = screen_file(args.resume, args.jd, args.mode, cfg, datasets, llm=args.llm)
+    except ScreeningError as e:
+        print(f"失败: {e}", file=sys.stderr)
+        return 1
     except LoaderError as e:
         print(f"解析失败: {e}", file=sys.stderr)
         return 1
-
-    call = fake_call_fn() if args.llm == "fake" else make_call_fn(cfg)
-    client = LLMClient(
-        chain=cfg.fallback_chain,
-        call_fn=call,
-        validator=validate_llm_output,
-        failed_queue=FailedQueue(path=datasets / "failed.jsonl"),
-    )
-
-    prompt = build_prompt(doc.text, jd_text(jd_map[args.jd]))
-    try:
-        data = client.complete(prompt)
     except LLMError as e:
         print(f"模型调用失败: {e}", file=sys.stderr)
         return 1
 
-    verdict = assess(data, args.mode, cfg.thresholds)
-    snapshot = verify_snapshot(verdict.snapshot, doc.text)
+    verdict, snapshot, doc = result["verdict"], result["snapshot"], result["doc"]
     append_record(
         build_record(args.resume, args.jd, verdict, doc_loader=doc.loader, snapshot=snapshot),
         datasets / "manifest.jsonl",
     )
     print(
-        f"verdict={verdict.snapshot['verdict']} "
-        f"G={verdict.g} S={verdict.s} T={verdict.t} "
+        f"verdict={snapshot['verdict']} G={verdict.g} S={verdict.s} T={verdict.t} "
         f"mode={args.mode} loader={doc.loader}"
     )
     return 0

@@ -4,3 +4,4 @@ PyYAML>=6.0
 openai>=1.30
 python-dotenv>=1.0
 requests>=2.31
+lark-oapi>=1.0
