@@ -10,10 +10,16 @@
 
 ## 当前版本
 
-**V0.5** — 飞书长连接 bot 接入。
+**V0.7** — API + AE 工作台 + skill 入口，全部功能到位。
 
-### 飞书集成（v0.5 可用，需控制台配置）
-`python -m backend.cli.bot` —— 企业自建应用 + 长连接（WebSocket，无需公网入站），群内 @bot 发 PDF → 自动筛 → 纯文本回复。前置：飞书开放平台创建企业自建应用 → 启用机器人 + 权限（im:message / send_as_bot / group_at_msg / im:resource）→ 事件订阅切换为「使用长连接接收事件」→ `.env` 配置 FEISHU_APP_ID/SECRET/CHAT_WHITELIST/RESUME_DEFAULT_JD。
+## 功能
+
+- **筛简历**：`python -m backend.cli.screen <简历.pdf> --jd <岗位key>` —— 三模式评分、双闸门、红线否决、quotation 校验、manifest 落库
+- **文档解析**：layout-parsing 远程主力 → pymupdf → paddleocr 降级链
+- **评估 pipeline**：`python -m backend.eval.run_eval` —— 混淆矩阵 / 指标 / 阈值扫描 / 单指标区分度；JSON + HTML
+- **飞书集成**：`python -m backend.cli.bot` —— 长连接双向 bot（@ + 简历/压缩包 → 纯文本回复；需飞书控制台配置）
+- **API**：`uvicorn backend.api.main:app` —— `/screen` `/eval` `/roles` + X-API-Key
+- **AE 工作台**：`cd web && npm run dev` —— react 极客风界面
 
 ## 功能
 

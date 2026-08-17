@@ -6,6 +6,14 @@ import pytest
 from backend.doc_loader.base import LoaderError, doc_to_text, resolve_loader_names
 from backend.doc_loader.pymupdf_local import extract_text
 
+
+@pytest.fixture(autouse=True)
+def _no_external_layout(monkeypatch):
+    """api.main 导入会 load_dotenv 加载真实 .env；此处清除布局解析凭据，
+    保证「主解析器缺失」类测试走本地降级、不触真实网络。"""
+    monkeypatch.delenv("LAYOUT_PARSING_URL", raising=False)
+    monkeypatch.delenv("LAYOUT_PARSING_TOKEN", raising=False)
+
 RESUME_TEXT = (
     "Zhang San - Senior Engineer\n"
     "3 years of experience with react and python.\n"

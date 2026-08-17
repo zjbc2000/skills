@@ -47,32 +47,19 @@ def _max_total(records: List[dict]) -> int:
     ) if records else 0
 
 
-def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="评估：对标注数据计算指标并出报告")
-    parser.add_argument("--datasets", default=str(DEFAULT_DATASETS))
-    parser.add_argument("--json", default=None, help="数据侧 JSON 输出路径（缺省 datasets/eval.json）")
-    parser.add_argument("--html", default=None, help="HTML 报告路径（缺省 datasets/eval.html）")
-    parser.add_argument("--general", type=int, default=None, help="阈值扫描固定的通用阈值（缺省取 config）")
-    parser.add_argument("--total-range", default=None, help="阈值扫描区间 'lo,hi'（缺省 0..最大 T）")
-    args = parser.parse_args(argv)
-
-    datasets = Path(args.datasets)
-    records = build_records(load_records(datasets / "manifest.jsonl"))
+def build_eval_data(records: List[dict], cfg, fixed_general=None, total_range=None) -> dict:
+    """由记录与配置计算完整评估数据（CLI 与 API 共用，DRY）。"""
     if not records:
-        print(f"manifest 无记录: {datasets / 'manifest.jsonl'}", file=sys.stderr)
-        return 1
-
-    cfg = load_config()
-    fixed_general = args.general if args.general is not None else int(cfg.thresholds["general"])
-    lo, hi = (0, _max_total(records))
-    if args.total_range:
-        lo, hi = (int(x) for x in args.total_range.split(","))
+        return {"n": 0, "records": [], "metrics": {}, "confusion": {},
+                "quotation_accuracy": {"ratio": 0.0}}
+    fixed_general = fixed_general if fixed_general is not None else int(cfg.thresholds["general"])
+    lo, hi = (0, _max_total(records)) if total_range is None else total_range
 
     c = confusion(records)
     q_exact, q_total, q_ratio = quotation_accuracy(records)
     rows, best = threshold_scan(records, fixed_general=fixed_general, total_range=(lo, hi))
-
-    data = {
+    return {
+        "n": len(records),
         "metrics": {
             "accuracy": accuracy(c), "precision": precision(c),
             "recall": recall(c), "f1": f1(c), "n": len(records),
@@ -89,6 +76,32 @@ def main(argv=None) -> int:
             for r in records
         ],
     }
+
+
+def _parse_range(s):
+    if not s:
+        return None
+    return tuple(int(x) for x in s.split(","))
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description="评估：对标注数据计算指标并出报告")
+    parser.add_argument("--datasets", default=str(DEFAULT_DATASETS))
+    parser.add_argument("--json", default=None, help="数据侧 JSON 输出路径（缺省 datasets/eval.json）")
+    parser.add_argument("--html", default=None, help="HTML 报告路径（缺省 datasets/eval.html）")
+    parser.add_argument("--general", type=int, default=None, help="阈值扫描固定的通用阈值（缺省取 config）")
+    parser.add_argument("--total-range", default=None, help="阈值扫描区间 'lo,hi'（缺省 0..最大 T）")
+    args = parser.parse_args(argv)
+
+    datasets = Path(args.datasets)
+    records = build_records(load_records(datasets / "manifest.jsonl"))
+    if not records:
+        print(f"manifest 无记录: {datasets / 'manifest.jsonl'}", file=sys.stderr)
+        return 1
+
+    data = build_eval_data(records, load_config(), fixed_general=args.general,
+                           total_range=_parse_range(args.total_range))
+
 
     out_json = Path(args.json) if args.json else datasets / "eval.json"
     out_html = Path(args.html) if args.html else datasets / "eval.html"

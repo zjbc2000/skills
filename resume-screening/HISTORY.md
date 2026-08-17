@@ -4,6 +4,13 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.7 — 2026-08-17
+
+### Added
+- FastAPI 后端（`backend/api/main.py`）：`/health` `/roles` `/screen` `/eval` + X-API-Key 鉴权 + CORS
+- AE 工作台（`web/`，react + Vite，极客风暗色）：上传简历 → 选岗位/模式 → G/S/T 明细、评估指标、jd_map 浏览
+- SKILL.md 入口：筛简历 / 跑评估两模式，本地 CLI + 服务器 API 编排
+
 ## V0.6 — 2026-08-17
 
 ### Added

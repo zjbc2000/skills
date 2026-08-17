@@ -1,0 +1,118 @@
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: #0d1117;
+  color: #c9d1d9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.app {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+header {
+  border-bottom: 1px solid #30363d;
+  padding-bottom: 8px;
+  margin-bottom: 20px;
+}
+
+h1 {
+  color: #58a6ff;
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+
+h2 {
+  color: #58a6ff;
+  font-size: 16px;
+}
+
+section {
+  margin-bottom: 28px;
+}
+
+label {
+  display: block;
+  margin: 8px 0;
+}
+
+select,
+input[type='file'],
+button {
+  background: #161b22;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: #238636;
+  border-color: #238636;
+  color: #fff;
+}
+
+button:hover {
+  background: #2ea043;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 14px;
+  margin-top: 12px;
+}
+
+.verdict {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.pass {
+  color: #3fb950;
+}
+
+.fail {
+  color: #f85149;
+}
+
+.muted {
+  color: #8b949e;
+  font-size: 13px;
+}
+
+.error {
+  color: #f85149;
+}
+
+pre {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 10px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  padding: 2px 0;
+}
