@@ -18,8 +18,8 @@
 - **文档解析**：layout-parsing 远程主力 → pymupdf → paddleocr 降级链
 - **评估 pipeline**：`python -m backend.eval.run_eval` —— 混淆矩阵 / 指标 / 阈值扫描 / 单指标区分度；JSON + HTML
 - **飞书集成**：`python -m backend.cli.bot` —— 长连接双向 bot（@ + 简历/压缩包 → 纯文本回复；需飞书控制台配置）
-- **API**：`python3 -m backend.cli.api` —— `/screen` `/eval` `/roles` + X-API-Key（端口读 `.env` 的 `API_PORT`，默认 8000）
-- **AE 工作台**：`cd web && npm run dev` —— react 极客风界面（dev 端口读 `.env` 的 `WEB_PORT`，默认 5173）
+- **一键启动/停止**：`./scripts/start.sh start|stop|status` —— 后端 API（`backend.cli.api`，端口读 `.env` 的 `API_HOST/API_PORT`，默认 8000）+ 前端（vite dev，端口读 `WEB_PORT` 默认 5173，HMR 热重载）；日志 `var/log/{api,web}.log`，pid `var/run/`
+- 单独启动：API `python3 -m backend.cli.api`；前端 `cd web && npm run dev`
 
 > ⚠️ **环境提示**：请用 `python3 -m uvicorn`（系统 python3，依赖齐全）而非裸 `uvicorn`。裸命令可能解析到 conda `bidding_env`（缺本项目依赖）而报 `ModuleNotFoundError`。若已在 conda 环境，先 `conda deactivate`。推荐长期方案：项目独立 venv（`.venv/bin/python -m uvicorn ...`）。
 

@@ -4,6 +4,11 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.16 — 2026-08-17
+
+### Added
+- `scripts/start.sh start|stop|status`：一键启动/停止 API + 前端（vite dev 热重载）；端口读根 `.env`（API_HOST/API_PORT/WEB_PORT），日志 `var/log/`，pid `var/run/`
+
 ## V0.15 — 2026-08-17
 
 ### Changed
