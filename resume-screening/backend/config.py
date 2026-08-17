@@ -53,6 +53,15 @@ def load_config(config_dir: Union[Path, str, None] = None) -> AppConfig:
     if not isinstance(providers, dict) or not providers:
         raise ConfigError("models.yml: providers 缺失或为空")
     default = models.get("default")
+    # 运行时默认模型覆盖（dashboard 切换按钮写 default_model.yml，不污染 models.yml）
+    override = base / "default_model.yml"
+    if override.exists():
+        try:
+            ov = yaml.safe_load(override.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            ov = {}
+        if isinstance(ov, dict) and ov.get("provider") and ov.get("model"):
+            default = ov
     if not isinstance(default, dict) or not default.get("provider") or not default.get("model"):
         raise ConfigError("models.yml: default 缺失或非法")
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import time
 from typing import Callable, Optional
 
 from openai import (
@@ -11,6 +12,7 @@ from openai import (
     OpenAI,
 )
 
+from ..persistence import usage
 from ..scoring.prompts import SYSTEM_PROMPT
 from .llm_client import LLMError, TransientError
 
@@ -45,17 +47,34 @@ def make_call_fn(cfg, system_prompt: str = SYSTEM_PROMPT) -> Callable:
             messages.append(
                 {"role": "user", "content": f"上次输出不合规：{feedback}。请重新输出合法 JSON。"}
             )
+        start = time.monotonic()
         try:
             resp = client.chat.completions.create(model=model, messages=messages, temperature=0)
         except (APIConnectionError, APITimeoutError) as e:
+            usage.record(provider, model, 0, 0, _elapsed_ms(start), False)
             raise TransientError(f"连接/超时: {e}") from e
         except APIStatusError as e:
+            usage.record(provider, model, 0, 0, _elapsed_ms(start), False)
             if e.status_code == 429 or e.status_code >= 500:
                 raise TransientError(f"服务端状态 {e.status_code}") from e
             raise LLMError(f"API 错误 {e.status_code}: {e}") from e
         content = resp.choices[0].message.content if resp.choices else None
         if not content:
+            usage.record(provider, model, 0, 0, _elapsed_ms(start), False)
             raise LLMError("模型返回空响应")
+        u = getattr(resp, "usage", None)
+        usage.record(
+            provider,
+            model,
+            getattr(u, "prompt_tokens", 0) or 0,
+            getattr(u, "completion_tokens", 0) or 0,
+            _elapsed_ms(start),
+            True,
+        )
         return content
 
     return call
+
+
+def _elapsed_ms(start: float) -> float:
+    return round((time.monotonic() - start) * 1000, 1)

@@ -4,6 +4,14 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.23 — 2026-08-18
+
+### Added
+- 模型面板（Dashboard）：菜单新增「模型面板」页——总览卡（调用次数 / 成功率 / 输入·输出 token / 平均耗时）、按模型分组表（成功率、token、耗时）、最近调用列表；附「清空用量」
+- LLM 用量埋点：openai_adapter 每次真实调用记录 token（usage）、耗时、成败到 `datasets/usage.db`（sqlite，datasets/* 已忽略）
+- 切换默认模型：dashboard 下拉选择 → 写 `config/default_model.yml`（运行时覆盖，不改被 git 跟踪的 models.yml），下次调用即生效
+- 后端：`GET /dashboard` `POST /dashboard/clear` `GET /models` `POST /models/default`
+
 ## V0.22 — 2026-08-17
 
 ### Changed

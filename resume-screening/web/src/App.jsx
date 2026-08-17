@@ -1,14 +1,16 @@
 import { useState } from 'react'
+import DashboardView from './views/DashboardView.jsx'
 import EvalView from './views/EvalView.jsx'
 import HistoryView from './views/HistoryView.jsx'
 import JdView from './views/JdView.jsx'
 import ScreenView from './views/ScreenView.jsx'
 
 const NAV = [
-  { key: 'screen', label: '筛简历', icon: <ClipboardIcon /> },
+  { key: 'screen', label: '简历筛选', icon: <ClipboardIcon /> },
   { key: 'jd', label: 'JD 管理', icon: <BriefcaseIcon /> },
-  { key: 'history', label: '历史', icon: <HistoryIcon /> },
-  { key: 'eval', label: '评测', icon: <ChartIcon /> },
+  { key: 'history', label: '历史记录', icon: <HistoryIcon /> },
+  { key: 'dashboard', label: '模型面板', icon: <GaugeIcon /> },
+  { key: 'eval', label: '数据·评测', icon: <ChartIcon /> },
 ]
 
 export default function App() {
@@ -21,6 +23,7 @@ export default function App() {
         {view === 'screen' && <ScreenView key={rolesVersion} />}
         {view === 'jd' && <JdView onSaved={() => setRolesVersion((v) => v + 1)} />}
         {view === 'history' && <HistoryView key={rolesVersion} />}
+        {view === 'dashboard' && <DashboardView />}
         {view === 'eval' && <EvalView />}
       </main>
     </div>
@@ -32,7 +35,7 @@ function Sidebar({ active, onSelect }) {
     <aside className="sidebar">
       <div className="brand">
         <LogoMark />
-        <span>~/ae</span>
+        <span>ae工作台</span>
       </div>
       <nav className="nav" aria-label="主导航">
         {NAV.map((item) => (
@@ -104,6 +107,16 @@ function HistoryIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
+    </svg>
+  )
+}
+
+function GaugeIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d="M4 18a8 8 0 1 1 16 0" />
+      <path d="M12 18l4-6" />
+      <circle cx="12" cy="18" r="1.5" fill="currentColor" stroke="none" />
     </svg>
   )
 }

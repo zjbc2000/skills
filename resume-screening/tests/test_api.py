@@ -372,3 +372,46 @@ def test_jd_update_edits_and_migrates_key(client, tmp_path):
                        json={"old_key": "不存在", "key": "K", "position": "P",
                              "skills": ["z"], "red_lines": []})
     assert miss.status_code == 409
+
+
+def test_dashboard_models_and_switch_api(client, tmp_path, monkeypatch):
+    """dashboard 聚合 / models 列表 / 切换默认模型（写 tmp 配置）/ 清空用量。"""
+    from backend.persistence import usage
+
+    usage.record("ark_coding", "deepseek-v4-flash", 100, 50, 100.0, True)
+    usage.record("ark_coding", "deepseek-v4-flash", 10, 5, 500.0, False)
+
+    dash = client.get("/dashboard", headers=_auth()).json()
+    assert dash["summary"]["n"] == 2 and dash["summary"]["success_rate"] == 0.5
+    assert dash["by_model"][0]["model"] == "deepseek-v4-flash"
+    assert len(dash["recent"]) == 2
+
+    m = client.get("/models", headers=_auth()).json()
+    assert "ark_coding" in m["providers"]
+    assert m["default"]["provider"] == "ark_coding"
+
+    # 切换默认模型：RESUME_CONFIG 指向 tmp 配置目录，避免写仓库 config/
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "models.yml").write_text(
+        "providers:\n  ark_coding:\n    base_url: http://x\n    api_key_env: K\n"
+        "    models: [deepseek-v4-flash, doubao-seed-2.0-lite]\n"
+        "default:\n  provider: ark_coding\n  model: deepseek-v4-flash\n", encoding="utf-8")
+    (cfg_dir / "tools.yml").write_text("doc_loader:\n  primary: local_pymupdf\n", encoding="utf-8")
+    (cfg_dir / "thresholds.yml").write_text("general: 30\nspecific: 20\ntotal: 45\n", encoding="utf-8")
+    monkeypatch.setenv("RESUME_CONFIG", str(cfg_dir))
+
+    r = client.post("/models/default", headers=_auth(),
+                    json={"provider": "ark_coding", "model": "doubao-seed-2.0-lite"})
+    assert r.status_code == 200
+    assert (cfg_dir / "default_model.yml").exists()
+    m2 = client.get("/models", headers=_auth()).json()
+    assert m2["default"] == {"provider": "ark_coding", "model": "doubao-seed-2.0-lite"}
+
+    bad = client.post("/models/default", headers=_auth(),
+                      json={"provider": "ark_coding", "model": "不存在"})
+    assert bad.status_code == 400
+
+    c = client.post("/dashboard/clear", headers=_auth())
+    assert c.status_code == 200
+    assert client.get("/dashboard", headers=_auth()).json()["summary"]["n"] == 0

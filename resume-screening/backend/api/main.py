@@ -17,6 +17,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadF
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..config import load_config
+from ..persistence import usage
 from ..doc_loader.base import LoaderError
 from ..eval.run_eval import build_eval_data, build_records
 from ..persistence.history import add_session, get_session, list_sessions
@@ -309,6 +310,49 @@ def jd_update(body: dict) -> dict:
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
     return {"key": key.strip(), "roles": list(load_jd_map(path).keys())}
+
+
+@app.get("/models", dependencies=[Depends(_require_api_key)])
+def models() -> dict:
+    """可用模型（providers × models）与当前默认。"""
+    cfg = load_config(_config_dir())
+    return {
+        "providers": {p: list(c["models"]) for p, c in cfg.providers.items()},
+        "default": {"provider": cfg.default["provider"], "model": cfg.default["model"]},
+    }
+
+
+@app.post("/models/default", dependencies=[Depends(_require_api_key)])
+def set_default_model(body: dict) -> dict:
+    """切换默认模型：写 config/default_model.yml（运行时覆盖，不改 models.yml）。"""
+    provider = body.get("provider")
+    model = body.get("model")
+    cfg = load_config(_config_dir())
+    models_list = (cfg.providers.get(provider) or {}).get("models", [])
+    if provider not in cfg.providers or model not in models_list:
+        raise HTTPException(status_code=400, detail=f"非法模型组合: {provider}/{model}")
+    path = _config_dir() / "default_model.yml"
+    path.write_text(
+        yaml.safe_dump({"provider": provider, "model": model}, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    return {"default": {"provider": provider, "model": model}}
+
+
+@app.get("/dashboard", dependencies=[Depends(_require_api_key)])
+def dashboard() -> dict:
+    """LLM 用量面板：总览 + 按模型 + 最近调用。"""
+    return {
+        "summary": usage.summary(),
+        "by_model": usage.by_model(),
+        "recent": usage.recent(),
+    }
+
+
+@app.post("/dashboard/clear", dependencies=[Depends(_require_api_key)])
+def dashboard_clear() -> dict:
+    usage.clear()
+    return {"ok": True}
 
 
 @app.get("/eval", dependencies=[Depends(_require_api_key)])

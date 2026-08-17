@@ -663,6 +663,15 @@ button.link:hover {
   color: var(--danger);
 }
 
+/* ---------- v0.23：模型面板 ---------- */
+.model-switch {
+  margin: var(--space-3) 0;
+}
+
+.model-switch select {
+  flex: 1;
+}
+
 /* ---------- v0.22：JD 管理（卡片 + 弹窗） ---------- */
 .page-head {
   display: flex;

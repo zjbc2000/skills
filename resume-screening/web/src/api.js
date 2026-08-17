@@ -104,6 +104,22 @@ export function getHistorySession(sessionId) {
   return request(`/history/${sessionId}`)
 }
 
+export function getDashboard() {
+  return request('/dashboard')
+}
+
+export function getModels() {
+  return request('/models')
+}
+
+export function setDefaultModel(provider, model) {
+  return postJson('/models/default', { provider, model })
+}
+
+export function clearUsage() {
+  return postJson('/dashboard/clear', {})
+}
+
 export function applyThreshold(threshold) {
   return postJson('/eval/apply-threshold', { threshold })
 }

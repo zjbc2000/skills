@@ -14,6 +14,13 @@ def _cfg(provider="p"):
     )
 
 
+@pytest.fixture(autouse=True)
+def _isolate_usage(tmp_path, monkeypatch):
+    """usage 记录写入 tmp，不污染真实 datasets。"""
+    monkeypatch.setenv("RESUME_DATASETS", str(tmp_path))
+    yield
+
+
 def test_call_fn_sets_request_timeout(monkeypatch):
     """SDK 默认 600s 会导致任务线程长时间阻塞——必须显式传 timeout。"""
     captured = {}
