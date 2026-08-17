@@ -224,6 +224,21 @@ h1 + .eyebrow {
   margin-bottom: var(--space-4);
 }
 
+/* 岗位/模式：两栏并排（v0.21） */
+.field-grid.two-up {
+  grid-template-columns: 1fr 1fr;
+}
+
+.file-field {
+  margin-bottom: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .field-grid.two-up {
+    grid-template-columns: 1fr;
+  }
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -646,6 +661,54 @@ button.link:hover {
 
 .bad-text {
   color: var(--danger);
+}
+
+/* ---------- v0.21：评分排行 / 详情表格 / 历史 ---------- */
+.th-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.table .rank-t {
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.detail-wrap {
+  margin-top: var(--space-4);
+  border-top: var(--border-w) solid var(--border);
+  padding-top: var(--space-4);
+}
+
+.detail-group {
+  margin-bottom: var(--space-4);
+}
+
+.detail-group .row-between {
+  margin-bottom: var(--space-2);
+}
+
+.cell-evidence {
+  max-width: 320px;
+  color: var(--muted);
+}
+
+.cell-quote {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hit-mark {
+  color: var(--accent);
+  margin-left: 4px;
+}
+
+.history-record {
+  border-left: 2px solid var(--border-strong);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
 /* ---------- 响应式 ---------- */

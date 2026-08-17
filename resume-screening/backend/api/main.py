@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from ..config import load_config
 from ..doc_loader.base import LoaderError
 from ..eval.run_eval import build_eval_data, build_records
+from ..persistence.history import add_session, get_session, list_sessions
 from ..persistence.jd_map import load_jd_map, save_jd
 from ..persistence.labels import load_labels, save_label
 from ..persistence.manifest import append_record, build_record
@@ -146,6 +147,7 @@ def _run_batch(log, docs: List[tuple], jd: str, mode: str, llm: str) -> dict:
             results.append({"name": display_name, "error": str(e)})
     ok = sum(1 for r in results if "verdict" in r)
     log(f"全部完成：成功 {ok}，失败 {len(results) - ok}")
+    add_session(_datasets_dir() / "history.db", jd, mode, results)
     return {"results": results, "n_ok": ok, "n_fail": len(results) - ok}
 
 
@@ -213,6 +215,21 @@ def jd_extract(body: dict) -> dict:
         raise HTTPException(status_code=400, detail="jd_raw 必填且非空")
     llm = body.get("llm", "real")
     return {"task_id": tasks.submit(_run_jd_extract, jd_raw, llm)}
+
+
+@app.get("/history", dependencies=[Depends(_require_api_key)])
+def history() -> dict:
+    """筛选历史会话列表（sqlite）。"""
+    return {"sessions": list_sessions(_datasets_dir() / "history.db")}
+
+
+@app.get("/history/{session_id}", dependencies=[Depends(_require_api_key)])
+def history_detail(session_id: int) -> dict:
+    """单个历史会话详情（含逐条记录与 snapshot）。"""
+    sess = get_session(_datasets_dir() / "history.db", session_id)
+    if sess is None:
+        raise HTTPException(status_code=404, detail=f"会话不存在: {session_id}")
+    return sess
 
 
 @app.get("/tasks/{task_id}", dependencies=[Depends(_require_api_key)])

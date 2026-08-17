@@ -123,7 +123,7 @@ export default function JdView({ onSaved }) {
               <textarea rows={3} value={form.red_lines} onChange={(e) => setForm({ ...form, red_lines: e.target.value })} />
             </label>
             <button className="primary" disabled={busy}>
-              {busy ? '保存中…' : '保存到 jd_map'}
+              {busy ? '保存中…' : '保存'}
             </button>
           </form>
         </section>

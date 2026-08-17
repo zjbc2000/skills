@@ -295,3 +295,30 @@ def test_apply_threshold_writes_config(client, tmp_path, monkeypatch):
     assert data == {"general": 30, "specific": 20, "total": 18}
 
     assert client.post("/eval/apply-threshold", headers=_auth(), json={"threshold": -1}).status_code == 400
+
+
+def test_history_api_flow(client, tmp_path):
+    """batch 筛选后写 sqlite，/history 可列出并取详情。"""
+    pdf = tmp_path / "resume.pdf"
+    _make_pdf(pdf, "Zhang San - Senior Engineer, react and python, OCR team.")
+    with open(pdf, "rb") as f:
+        r = client.post(
+            "/screen/batch",
+            headers=_auth(),
+            files={"files": ("resume.pdf", f, "application/pdf")},
+            data={"jd": "西安AE", "llm": "fake"},
+        )
+    t = _wait_task(client, r.json()["task_id"])
+    assert t["status"] == "done"
+
+    hist = client.get("/history", headers=_auth()).json()
+    assert len(hist["sessions"]) == 1
+    sid = hist["sessions"][0]["id"]
+    assert hist["sessions"][0]["jd"] == "西安AE"
+
+    detail = client.get(f"/history/{sid}", headers=_auth()).json()
+    assert detail["records"][0]["name"] == "resume.pdf"
+    assert detail["records"][0]["snapshot"] is not None
+
+    assert client.get("/history/99999", headers=_auth()).status_code == 404
+    assert client.get("/history").status_code == 401

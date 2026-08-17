@@ -88,6 +88,14 @@ export function setLabel(recordKey, label) {
   return postJson('/label', { record_key: recordKey, label })
 }
 
+export function getHistory() {
+  return request('/history')
+}
+
+export function getHistorySession(sessionId) {
+  return request(`/history/${sessionId}`)
+}
+
 export function applyThreshold(threshold) {
   return postJson('/eval/apply-threshold', { threshold })
 }

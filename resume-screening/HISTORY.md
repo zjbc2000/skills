@@ -4,6 +4,12 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.21 — 2026-08-17
+
+### Added
+- 筛选历史（sqlite，`datasets/history.db`）：每次 batch 会话写 sessions + 逐条 records（含 snapshot JSON）；`GET /history` 列表、`GET /history/{id}` 详情（前端新增「历史」菜单页）
+- 筛简历页重构：岗位/模式两栏在上、简历文件选择单独在下；筛选结果改为**评分排行**（按总分 T 降序，含 G/S/T 与判定），每行「查看详情」把 snapshot JSON 渲染为分组表格（项目/技术栈/亮点/红线/岗位匹配/技能命中）
+
 ## V0.20 — 2026-08-17
 
 ### Changed

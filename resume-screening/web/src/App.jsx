@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import EvalView from './views/EvalView.jsx'
+import HistoryView from './views/HistoryView.jsx'
 import JdView from './views/JdView.jsx'
 import ScreenView from './views/ScreenView.jsx'
 
 const NAV = [
   { key: 'screen', label: '筛简历', icon: <ClipboardIcon /> },
   { key: 'jd', label: 'JD 管理', icon: <BriefcaseIcon /> },
+  { key: 'history', label: '历史', icon: <HistoryIcon /> },
   { key: 'eval', label: '评测', icon: <ChartIcon /> },
 ]
 
@@ -18,6 +20,7 @@ export default function App() {
       <main className="content">
         {view === 'screen' && <ScreenView key={rolesVersion} />}
         {view === 'jd' && <JdView onSaved={() => setRolesVersion((v) => v + 1)} />}
+        {view === 'history' && <HistoryView key={rolesVersion} />}
         {view === 'eval' && <EvalView />}
       </main>
     </div>
@@ -92,6 +95,15 @@ function ChartIcon() {
       <path d="M8 16v-5" />
       <path d="M13 16V8" />
       <path d="M18 16v-8" />
+    </svg>
+  )
+}
+
+function HistoryIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
     </svg>
   )
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getRoles, screenBatch, waitTask } from '../api.js'
+import DetailTable from './DetailTable.jsx'
 
 const MODES = [
   { value: 'general', label: '通用' },
@@ -13,6 +14,7 @@ export default function ScreenView({ onRolesLoaded }) {
   const [files, setFiles] = useState([])
   const [results, setResults] = useState(null)
   const [logs, setLogs] = useState([])
+  const [selected, setSelected] = useState(null) // 排行中选中的记录
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -35,6 +37,7 @@ export default function ScreenView({ onRolesLoaded }) {
     setError('')
     setBusy(true)
     setResults(null)
+    setSelected(null)
     setLogs([])
     try {
       const { task_id } = await screenBatch(files, { jd, mode })
@@ -49,6 +52,11 @@ export default function ScreenView({ onRolesLoaded }) {
     }
   }
 
+  // 评分排行：只列有判定的，按 T 降序
+  const ranking = (results?.results || [])
+    .filter((r) => r.verdict)
+    .sort((a, b) => b.totals.T - a.totals.T)
+
   return (
     <>
       <h1>筛简历</h1>
@@ -56,7 +64,7 @@ export default function ScreenView({ onRolesLoaded }) {
 
       <section className="card">
         <form onSubmit={onScreen}>
-          <div className="field-grid">
+          <div className="field-grid two-up">
             <label className="field">
               <span>岗位</span>
               <select value={jd} onChange={(e) => setJd(e.target.value)}>
@@ -77,25 +85,25 @@ export default function ScreenView({ onRolesLoaded }) {
                 ))}
               </select>
             </label>
-            <label className="field">
-              <span>简历（可多选 pdf / docx，或上传 zip 包）</span>
-              <div className="file-picker">
-                <label htmlFor="resume-files" className="btn-secondary">选择文件…</label>
-                <input
-                  id="resume-files"
-                  type="file"
-                  accept=".pdf,.docx,.zip"
-                  multiple
-                  onChange={(e) => setFiles(Array.from(e.target.files || []))}
-                />
-                {files.length > 0 ? (
-                  <span className="file-count">{files.length} 个文件</span>
-                ) : (
-                  <span className="muted">未选择</span>
-                )}
-              </div>
-            </label>
           </div>
+          <label className="field file-field">
+            <span>简历（可多选 pdf / docx，或上传 zip 包）</span>
+            <div className="file-picker">
+              <label htmlFor="resume-files" className="btn-secondary">选择文件…</label>
+              <input
+                id="resume-files"
+                type="file"
+                accept=".pdf,.docx,.zip"
+                multiple
+                onChange={(e) => setFiles(Array.from(e.target.files || []))}
+              />
+              {files.length > 0 ? (
+                <span className="file-count">{files.length} 个文件</span>
+              ) : (
+                <span className="muted">未选择</span>
+              )}
+            </div>
+          </label>
           <button className="primary" disabled={busy}>
             {busy ? `筛选中…（${files.length} 份）` : `开始筛选（${files.length} 份）`}
           </button>
@@ -111,45 +119,66 @@ export default function ScreenView({ onRolesLoaded }) {
             </pre>
           </div>
         )}
-        {results && (
-          <div className="batch">
-            <div className="muted">
-              成功 {results.n_ok} · 失败 {results.n_fail}
-            </div>
-            {results.results.map((r, i) => (
-              <ResultRow key={`${r.name}-${i}`} result={r} />
-            ))}
-          </div>
-        )}
       </section>
-    </>
-  )
-}
 
-function ResultRow({ result }) {
-  const [open, setOpen] = useState(false)
-  const hasVerdict = Boolean(result.verdict)
-  return (
-    <div className={`batch-row ${hasVerdict ? (result.verdict === 'pass' ? 'ok' : 'bad') : 'bad'}`}>
-      <div className="row-between">
-        <span className="batch-name">{result.name}</span>
-        {hasVerdict ? (
-          <span className={`tag ${result.verdict === 'pass' ? 'tag-pass' : 'tag-fail'}`}>
-            {result.verdict.toUpperCase()} · G{result.totals.G} S{result.totals.S} T{result.totals.T}
-          </span>
-        ) : (
-          <span className="tag tag-fail">失败</span>
-        )}
-      </div>
-      {hasVerdict ? (
-        <>
-          <div className="muted">解析器 {result.doc_loader} · 阈值 G≥{result.thresholds.general} 且 T≥{result.thresholds.total}</div>
-          <button className="link" onClick={() => setOpen(!open)}>{open ? '收起明细' : '打分明细'}</button>
-          {open && <pre className="detail-pre">{JSON.stringify(result.snapshot, null, 2)}</pre>}
-        </>
-      ) : (
-        <div className="error">{result.error}</div>
+      {results && (
+        <section className="card">
+          <div className="row-between">
+            <h2>评分排行</h2>
+            <span className="muted">成功 {results.n_ok} · 失败 {results.n_fail}</span>
+          </div>
+          {ranking.length === 0 && <p className="muted">无评分结果</p>}
+          <table className="table ranking">
+            <thead>
+              <tr>
+                <th className="th-num">#</th>
+                <th>简历</th>
+                <th className="th-num">G</th>
+                <th className="th-num">S</th>
+                <th className="th-num">T</th>
+                <th>判定</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {ranking.map((r, i) => (
+                <tr key={`${r.name}-${i}`} className={selected === r ? 'hl' : ''}>
+                  <td className="th-num">{i + 1}</td>
+                  <td className="cell-name" title={r.name}>{r.name}</td>
+                  <td className="th-num">{r.totals.G}</td>
+                  <td className="th-num">{r.totals.S}</td>
+                  <td className="th-num rank-t">{r.totals.T}</td>
+                  <td className={r.verdict === 'pass' ? 'ok-text' : 'bad-text'}>{r.verdict}</td>
+                  <td className="cell-actions">
+                    <button className="mini" onClick={() => setSelected(selected === r ? null : r)}>
+                      {selected === r ? '收起' : '查看详情'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {results.results
+            .filter((r) => !r.verdict)
+            .map((r, i) => (
+              <div key={`err-${i}`} className="batch-row bad">
+                <span className="batch-name">{r.name}</span>
+                <span className="error">{r.error}</span>
+              </div>
+            ))}
+          {selected && (
+            <div className="detail-wrap">
+              <div className="row-between">
+                <span className="batch-name">{selected.name}</span>
+                <span className={`tag ${selected.verdict === 'pass' ? 'tag-pass' : 'tag-fail'}`}>
+                  {selected.verdict.toUpperCase()} · T{selected.totals.T}
+                </span>
+              </div>
+              <DetailTable snapshot={selected.snapshot} />
+            </div>
+          )}
+        </section>
       )}
-    </div>
+    </>
   )
 }
