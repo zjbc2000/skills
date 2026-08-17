@@ -23,6 +23,7 @@ from ..registry.openai_adapter import make_call_fn
 from ..scoring.engine import MODES, assess
 from ..scoring.prompts import build_prompt
 from ..scoring.schema import validate_llm_output
+from ..verify.quotation import verify_snapshot
 
 DEFAULT_DATASETS = Path(__file__).resolve().parent.parent.parent / "datasets"
 
@@ -79,8 +80,9 @@ def main(argv=None) -> int:
         return 1
 
     verdict = assess(data, args.mode, cfg.thresholds)
+    snapshot = verify_snapshot(verdict.snapshot, doc.text)
     append_record(
-        build_record(args.resume, args.jd, verdict, doc_loader=doc.loader),
+        build_record(args.resume, args.jd, verdict, doc_loader=doc.loader, snapshot=snapshot),
         datasets / "manifest.jsonl",
     )
     print(

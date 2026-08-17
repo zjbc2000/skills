@@ -4,6 +4,12 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.4 — 2026-08-17
+
+### Added
+- quotation 校验（后置 grep）：exact/fuzzy/missing 三态打标，missing 标记 suspect 保留分数；挂到 CLI 评分后
+- 评估 pipeline：`python -m backend.eval.run_eval` —— 混淆矩阵 / 准确率·精确率·召回率·F1 / 引用准确率 / 阈值扫描找最优操作点 / 单指标区分度；JSON（数据侧）+ 自包含 HTML 报告（用户侧）
+
 ## V0.3 — 2026-08-17
 
 ### Added

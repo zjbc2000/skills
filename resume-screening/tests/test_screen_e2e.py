@@ -60,6 +60,8 @@ def test_screen_writes_manifest_with_fake_llm(tmp_path):
     snap = rec["score_snapshot"]
     assert snap["totals"] == {"G": 3, "S": 3, "T": 6}  # fake LLM 固定输出
     assert rec["doc_loader"] == "local_pymupdf"
+    # T06：quotation 校验已挂到 CLI，fake LLM 引用是原文子串 → exact
+    assert snap["general"]["projects"][0]["verify"] == "exact"
 
 
 def test_list_failed_lists_records(tmp_path, capsys):

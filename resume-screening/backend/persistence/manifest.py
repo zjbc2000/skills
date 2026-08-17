@@ -17,14 +17,19 @@ def load_records(path: Union[Path, str]) -> List[dict]:
 
 
 def build_record(
-    resume, jd_ref: str, verdict, doc_loader: str, ts: Optional[str] = None
+    resume,
+    jd_ref: str,
+    verdict,
+    doc_loader: str,
+    ts: Optional[str] = None,
+    snapshot: Optional[dict] = None,
 ) -> dict:
-    """由 Verdict 组装一条 manifest 记录（score_snapshot 即 verdict.snapshot）。"""
+    """由 Verdict 组装一条 manifest 记录（snapshot 缺省取 verdict.snapshot）。"""
     return {
         "resume": str(resume),
         "decision": "pass" if verdict.passed else "fail",
         "jd_ref": jd_ref,
-        "score_snapshot": verdict.snapshot,
+        "score_snapshot": snapshot if snapshot is not None else verdict.snapshot,
         "doc_loader": doc_loader,
         "time": ts or datetime.now(timezone.utc).isoformat(),
     }

@@ -10,13 +10,13 @@
 
 ## 当前版本
 
-**V0.3** — layout-parsing 接入 + .env 凭据加载，真实链路可跑。
+**V0.4** — quotation 校验 + 评估 pipeline，闭环可用。
 
 ## 功能
 
-- **筛简历（v0.3 可用）**：`python -m backend.cli.screen <简历.pdf> --jd <岗位key>` —— 三模式评分（通用 / 特定 / 通用+特定）、双闸门判定、红线一票否决、quotation 原文引用、manifest 落库；凭据从 `.env` 加载；`--llm fake` 本地无凭据跑通
+- **筛简历（v0.4 可用）**：`python -m backend.cli.screen <简历.pdf> --jd <岗位key>` —— 三模式评分（通用 / 特定 / 通用+特定）、双闸门判定、红线一票否决、quotation 原文引用 + 后置校验（exact/fuzzy/missing）、manifest 落库；凭据从 `.env` 加载；`--llm fake` 本地无凭据跑通
 - **文档解析**：layout-parsing 远程主力（POST PDF→Markdown）→ pymupdf 直读 → paddleocr 兜底
-- **评估 pipeline**：batch 回测 + 自包含 HTML 报告 + 阈值扫描（规划中）
+- **评估 pipeline（v0.4 可用）**：`python -m backend.eval.run_eval` —— 混淆矩阵 / 准确率·精确率·召回率·F1 / 引用准确率 / 阈值扫描 / 单指标区分度；JSON + 自包含 HTML 报告
 - **飞书集成**：群聊 @bot 发简历（含压缩包）→ 自动筛 → 纯文本回复（规划中）
 - **AE 工作台**：react 极客风界面（规划中）
 
