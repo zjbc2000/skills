@@ -42,6 +42,20 @@ def _auth():
     return {"X-API-Key": "test-key"}
 
 
+def _wait_task(client, tid, timeout=10):
+    """轮询任务直至 done/failed，返回 task 响应体。"""
+    import time
+
+    for _ in range(timeout * 10):
+        r = client.get(f"/tasks/{tid}", headers=_auth())
+        assert r.status_code == 200
+        t = r.json()
+        if t["status"] in ("done", "failed"):
+            return t
+        time.sleep(0.1)
+    raise AssertionError(f"任务超时: {tid}")
+
+
 def test_health_no_auth(client):
     r = client.get("/health")
     assert r.status_code == 200
@@ -133,13 +147,22 @@ def test_jd_extract_fake_llm(client):
         json={"jd_raw": "岗位职责：\n1.负责RAG交付\n岗位要求：\n1.本科以上", "llm": "fake"},
     )
     assert r.status_code == 200
-    body = r.json()
+    tid = r.json()["task_id"]
+    t = _wait_task(client, tid)
+    assert t["status"] == "done"
+    assert any("抽取完成" in line for line in t["logs"])
+    body = t["result"]
     assert body["position"] == "测试岗位"
     assert "1.负责RAG交付" in body["skills"]
 
 
 def test_jd_extract_requires_raw(client):
     assert client.post("/jd/extract", headers=_auth(), json={"jd_raw": " "}).status_code == 400
+
+
+def test_task_status_unknown_404(client):
+    assert client.get("/tasks/nonexistent", headers=_auth()).status_code == 404
+    assert client.get("/tasks/nonexistent").status_code == 401
 
 
 def test_jd_save_registers_role_and_rejects_duplicate(client, tmp_path):
@@ -202,7 +225,10 @@ def test_screen_batch_with_zip_and_docx(client, tmp_path):
         data={"jd": "西安AE", "mode": "general", "llm": "fake"},
     )
     assert r.status_code == 200
-    body = r.json()
+    t = _wait_task(client, r.json()["task_id"])
+    assert t["status"] == "done"
+    assert any("批量筛选 3 份简历" in line for line in t["logs"])
+    body = t["result"]
     assert body["n_ok"] == 3 and body["n_fail"] == 0
     names = {x["name"]: x for x in body["results"]}
     assert names["a.pdf"]["verdict"] in ("pass", "fail")
@@ -220,7 +246,8 @@ def test_screen_batch_bad_file_reports_error(client):
         data={"jd": "西安AE", "llm": "fake"},
     )
     assert r.status_code == 200
-    body = r.json()
+    t = _wait_task(client, r.json()["task_id"])
+    body = t["result"]
     assert body["n_fail"] == 1
     assert "error" in body["results"][0]
 

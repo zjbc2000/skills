@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getRoles, screenBatch } from '../api.js'
+import { getRoles, screenBatch, waitTask } from '../api.js'
 
 const MODES = [
   { value: 'general', label: '通用' },
@@ -12,6 +12,7 @@ export default function ScreenView({ onRolesLoaded }) {
   const [mode, setMode] = useState('general')
   const [files, setFiles] = useState([])
   const [results, setResults] = useState(null)
+  const [logs, setLogs] = useState([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -34,8 +35,13 @@ export default function ScreenView({ onRolesLoaded }) {
     setError('')
     setBusy(true)
     setResults(null)
+    setLogs([])
     try {
-      setResults(await screenBatch(files, { jd, mode }))
+      const { task_id } = await screenBatch(files, { jd, mode })
+      const result = await waitTask(task_id, {
+        onLog: (lines) => setLogs(lines),
+      })
+      setResults(result)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -85,6 +91,16 @@ export default function ScreenView({ onRolesLoaded }) {
           </button>
         </form>
         {error && <p className="error" role="alert">{error}</p>}
+        {(busy || logs.length > 0) && (
+          <div className="task-log">
+            <div className="muted">{busy ? '任务进行中…' : '完成'}</div>
+            <pre className="log-box">
+              {logs.map((line, i) => (
+                <div key={i} className="log-line">{line}</div>
+              ))}
+            </pre>
+          </div>
+        )}
         {results && (
           <div className="batch">
             <div className="muted">

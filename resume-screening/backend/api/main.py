@@ -29,11 +29,12 @@ from ..scoring.engine import MODES
 from ..scoring.prompts import build_jd_extract_prompt
 from ..scoring.schema import validate_jd_output, validate_llm_output
 from ..screening.pipeline import ScreeningError, screen_file
+from ..tasks import tasks
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(REPO_ROOT / ".env")
 
-app = FastAPI(title="resume-screening API", version="0.14")
+app = FastAPI(title="resume-screening API", version="0.15")
 
 app.add_middleware(
     CORSMiddleware,
@@ -71,9 +72,11 @@ def roles() -> dict:
     return {"roles": list(jd_map.keys())}
 
 
-def _screen_one(path, display_name: str, jd: str, mode: str, llm: str, cfg) -> dict:
+def _screen_one(path, display_name: str, jd: str, mode: str, llm: str, cfg, log=None) -> dict:
     """筛一份并落 manifest，返回前端结果 dict（失败抛异常，由调用方处理）。"""
-    result = screen_file(path, jd, mode, cfg, _datasets_dir(), llm=llm)
+    log = log or (lambda _line: None)
+    log(f"[{display_name}]")
+    result = screen_file(path, jd, mode, cfg, _datasets_dir(), llm=llm, on_log=log)
     snapshot, doc = result["snapshot"], result["doc"]
     append_record(
         build_record(display_name, jd, result["verdict"], doc_loader=doc.loader, snapshot=snapshot),
@@ -127,6 +130,25 @@ def _docs_from_zip(zip_path: Path, dest: Path) -> List[Path]:
     return out
 
 
+def _run_batch(log, docs: List[tuple], jd: str, mode: str, llm: str) -> dict:
+    """任务线程内逐份筛选，返回 batch 结果（含逐文件日志）。"""
+    cfg = load_config(_config_dir())
+    results = []
+    log(f"批量筛选 {len(docs)} 份简历，岗位「{jd}」…")
+    for path, display_name in docs:
+        if path is None:  # 上传阶段解包失败的占位条目
+            results.append({"name": display_name, "error": "非法 zip 包或 zip 内无 PDF/docx"})
+            continue
+        try:
+            results.append(_screen_one(path, display_name, jd, mode, llm, cfg, log=log))
+        except (ScreeningError, LoaderError, LLMError, ValueError) as e:
+            log(f"[{display_name}] 失败：{e}")
+            results.append({"name": display_name, "error": str(e)})
+    ok = sum(1 for r in results if "verdict" in r)
+    log(f"全部完成：成功 {ok}，失败 {len(results) - ok}")
+    return {"results": results, "n_ok": ok, "n_fail": len(results) - ok}
+
+
 @app.post("/screen/batch", dependencies=[Depends(_require_api_key)])
 async def screen_batch(
     files: List[UploadFile] = File(...),
@@ -134,51 +156,40 @@ async def screen_batch(
     mode: str = Form("general"),
     llm: str = Form("real"),
 ) -> dict:
-    """批量筛选：多份 PDF/docx，或含 PDF/docx 的 zip 包。单份失败不中断批次。"""
+    """批量筛选（异步任务）：立即返回 task_id，进度与结果经 GET /tasks/{id} 获取。"""
     if mode not in MODES:
         raise HTTPException(status_code=400, detail=f"未知模式: {mode}")
-    cfg = load_config(_config_dir())
-    results = []
-    with tempfile.TemporaryDirectory() as td:
-        tmpdir = Path(td)
-        docs: List[tuple] = []  # (Path, display_name)
-        for i, f in enumerate(files):
-            raw = await f.read()
-            name = f.filename or f"file{i}"
-            staging = tmpdir / f"upload{i}{Path(name).suffix}"
-            staging.write_bytes(raw)
-            if name.lower().endswith(".zip"):
-                inner_dir = tmpdir / f"zip{i}"
-                inner_dir.mkdir()
-                try:
-                    inners = _docs_from_zip(staging, inner_dir)
-                except zipfile.BadZipFile:
-                    results.append({"name": name, "error": "非法 zip 包"})
-                    continue
-                if not inners:
-                    results.append({"name": name, "error": "zip 内无 PDF/docx 文件"})
-                    continue
-                docs.extend((p, p.name) for p in inners)
-            else:
-                docs.append((staging, name))
 
-        for path, display_name in docs:
+    # 先落盘到任务专属临时目录（读取 UploadFile 必须留在请求内）
+    task_dir = Path(tempfile.mkdtemp(prefix="screen-task-"))
+    docs: List[tuple] = []  # (Path, display_name)
+    for i, f in enumerate(files):
+        raw = await f.read()
+        name = f.filename or f"file{i}"
+        staging = task_dir / f"upload{i}{Path(name).suffix}"
+        staging.write_bytes(raw)
+        if name.lower().endswith(".zip"):
+            inner_dir = task_dir / f"zip{i}"
+            inner_dir.mkdir()
             try:
-                results.append(_screen_one(path, display_name, jd, mode, llm, cfg))
-            except (ScreeningError, LoaderError, LLMError, ValueError) as e:
-                results.append({"name": display_name, "error": str(e)})
+                inners = _docs_from_zip(staging, inner_dir)
+            except zipfile.BadZipFile:
+                docs.append((None, name))  # 无法解包：提交前即记一条失败
+            else:
+                if not inners:
+                    docs.append((None, name))
+                else:
+                    docs.extend((p, p.name) for p in inners)
+        else:
+            docs.append((staging, name))
 
-    ok = sum(1 for r in results if "verdict" in r)
-    return {"results": results, "n_ok": ok, "n_fail": len(results) - ok}
+    tid = tasks.submit(_run_batch, docs, jd, mode, llm)
+    return {"task_id": tid}
 
 
-@app.post("/jd/extract", dependencies=[Depends(_require_api_key)])
-def jd_extract(body: dict) -> dict:
-    """JD 原文 -> 结构化字段（position/skills/red_lines）。"""
-    jd_raw = body.get("jd_raw")
-    if not isinstance(jd_raw, str) or not jd_raw.strip():
-        raise HTTPException(status_code=400, detail="jd_raw 必填且非空")
-    llm = body.get("llm", "real")
+def _run_jd_extract(log, jd_raw: str, llm: str) -> dict:
+    """任务线程内调用 LLM 抽取 JD 字段。"""
+    log(f"JD 抽取中（{len(jd_raw)} 字符原文）…")
     cfg = load_config(_config_dir())
     call = fake_jd_call_fn() if llm == "fake" else make_call_fn(cfg)
     client = LLMClient(
@@ -187,10 +198,29 @@ def jd_extract(body: dict) -> dict:
         validator=validate_jd_output,
         failed_queue=FailedQueue(path=_datasets_dir() / "failed.jsonl"),
     )
-    try:
-        return client.complete(build_jd_extract_prompt(jd_raw))
-    except LLMError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    fields = client.complete(build_jd_extract_prompt(jd_raw))
+    log(f"抽取完成：position={fields['position']}，skills {len(fields['skills'])} 条，红线 {len(fields['red_lines'])} 条")
+    return fields
+
+
+@app.post("/jd/extract", dependencies=[Depends(_require_api_key)])
+def jd_extract(body: dict) -> dict:
+    """JD 原文 -> 结构化字段（异步任务，立即返回 task_id）。"""
+    jd_raw = body.get("jd_raw")
+    if not isinstance(jd_raw, str) or not jd_raw.strip():
+        raise HTTPException(status_code=400, detail="jd_raw 必填且非空")
+    llm = body.get("llm", "real")
+    return {"task_id": tasks.submit(_run_jd_extract, jd_raw, llm)}
+
+
+@app.get("/tasks/{task_id}", dependencies=[Depends(_require_api_key)])
+def task_status(task_id: str) -> dict:
+    """任务状态与累计日志。"""
+    t = tasks.get(task_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail=f"任务不存在: {task_id}")
+    return {"id": t["id"], "status": t["status"], "logs": t["logs"],
+            "error": t.get("error"), "result": t.get("result")}
 
 
 @app.post("/jd/save", dependencies=[Depends(_require_api_key)])

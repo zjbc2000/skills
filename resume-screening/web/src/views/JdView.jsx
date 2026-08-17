@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { extractJd, saveJd } from '../api.js'
+import { extractJd, saveJd, waitTask } from '../api.js'
 
 export default function JdView({ onSaved }) {
   const [jdRaw, setJdRaw] = useState('')
   const [form, setForm] = useState(null) // {key, position, skills, red_lines}
+  const [logs, setLogs] = useState([])
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -15,9 +16,13 @@ export default function JdView({ onSaved }) {
     }
     setError('')
     setNotice('')
+    setLogs([])
     setBusy(true)
     try {
-      const fields = await extractJd(jdRaw)
+      const { task_id } = await extractJd(jdRaw)
+      const fields = await waitTask(task_id, {
+        onLog: (lines) => setLogs(lines),
+      })
       setForm({
         key: '',
         position: fields.position || '',
@@ -83,6 +88,15 @@ export default function JdView({ onSaved }) {
         </button>
         {error && <p className="error" role="alert">{error}</p>}
         {notice && <p className="notice">{notice}</p>}
+        {(busy || logs.length > 0) && (
+          <div className="task-log">
+            <pre className="log-box">
+              {logs.map((line, i) => (
+                <div key={i} className="log-line">{line}</div>
+              ))}
+            </pre>
+          </div>
+        )}
       </section>
 
       {form && (

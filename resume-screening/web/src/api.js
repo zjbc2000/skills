@@ -51,6 +51,28 @@ export function extractJd(jdRaw) {
   return postJson('/jd/extract', { jd_raw: jdRaw })
 }
 
+export function getTask(taskId) {
+  return request(`/tasks/${taskId}`)
+}
+
+/** 轮询任务直至 done/failed；onLog 每次拿到累计日志（含新增行）。 */
+export async function waitTask(taskId, { onLog, interval = 1200 } = {}) {
+  let last = 0
+  for (;;) {
+    const t = await getTask(taskId)
+    if (onLog && t.logs.length !== last) {
+      last = t.logs.length
+      onLog(t.logs)
+    }
+    if (t.status === 'done') {
+      if (onLog) onLog(t.logs)
+      return t.result
+    }
+    if (t.status === 'failed') throw new Error(t.error || '任务失败')
+    await new Promise((r) => setTimeout(r, interval))
+  }
+}
+
 export function saveJd(payload) {
   return postJson('/jd/save', payload)
 }

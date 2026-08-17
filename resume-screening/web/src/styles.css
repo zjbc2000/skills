@@ -530,3 +530,29 @@ button.danger {
 .bad-text {
   color: var(--danger, #d24444);
 }
+
+/* --- v0.15: 异步任务日志 --- */
+.task-log {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.log-box {
+  background: #0b0e14;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.log-line::before {
+  content: '› ';
+  color: var(--accent);
+}
