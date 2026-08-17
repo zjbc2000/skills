@@ -65,6 +65,12 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/config/thresholds", dependencies=[Depends(_require_api_key)])
+def config_thresholds() -> dict:
+    """当前生效判定阈值（含 env 覆盖后的值），供前端模式说明等展示。"""
+    return {"thresholds": load_config(_config_dir()).thresholds}
+
+
 @app.get("/roles", dependencies=[Depends(_require_api_key)])
 def roles() -> dict:
     try:

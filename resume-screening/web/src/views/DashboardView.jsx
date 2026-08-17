@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Dropdown from '../components/Dropdown.jsx'
 import { clearUsage, getDashboard, getModels, setDefaultModel } from '../api.js'
 
 export default function DashboardView() {
@@ -87,13 +88,7 @@ export default function DashboardView() {
           <h2>默认模型</h2>
         </div>
         <form onSubmit={onApplyDefault} className="row-between model-switch">
-          <select value={defaultSel || ''} onChange={(e) => setDefaultSel(e.target.value)}>
-            {options.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
+          <Dropdown value={defaultSel || ''} options={options} onChange={setDefaultSel} />
           <button className="primary" disabled={busy || !defaultSel}>
             {busy ? '应用中…' : '切换默认模型'}
           </button>

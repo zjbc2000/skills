@@ -79,19 +79,21 @@ export default function EvalView() {
               <Metric label="引用准确率" value={pct(data.quotation_accuracy.ratio)} />
             </div>
             <div className="row-between">
-              <div className="muted">最优总分阈值 {data.best.threshold}（准确率 {pct(data.best.accuracy)}）</div>
+              <div className="muted">
+                最优 T 阈值 <b>{data.best.threshold}</b> · 准确率 {pct(data.best.accuracy)}
+              </div>
               <button onClick={onApplyThreshold} disabled={busy}>
                 应用建议阈值 T≥{data.best.threshold}
               </button>
             </div>
             <details className="detail">
-              <summary>阈值扫描明细</summary>
+              <summary>阈值扫描明细（扫描范围 {scanRange(data.threshold_scan)}，聚焦最优 ±15）</summary>
               <table className="table">
                 <thead>
                   <tr><th>T 阈值</th><th>判 pass</th><th>判 fail</th><th>准确率</th></tr>
                 </thead>
                 <tbody>
-                  {(data.threshold_scan || []).map((row) => (
+                  {(focusRows(data.threshold_scan, data.best?.threshold)).map((row) => (
                     <tr key={row.threshold} className={row.threshold === data.best.threshold ? 'hl' : ''}>
                       <td>{row.threshold}</td>
                       <td>{row.n_pass}</td>
@@ -163,4 +165,16 @@ function Metric({ label, value }) {
 
 function pct(x) {
   return `${((x || 0) * 100).toFixed(1)}%`
+}
+
+/** 扫描范围展示：lo~hi（如 15~81），由扫描表首尾行推导。 */
+function scanRange(rows) {
+  if (!rows?.length) return '–'
+  return `${rows[0].threshold}~${rows[rows.length - 1].threshold}`
+}
+
+/** 聚焦最优阈值 ±15 的行，避免全量逐行刷屏。 */
+function focusRows(rows, bestT) {
+  if (!rows?.length || bestT === undefined) return rows || []
+  return rows.filter((r) => Math.abs(r.threshold - bestT) <= 15)
 }

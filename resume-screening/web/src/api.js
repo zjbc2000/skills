@@ -27,6 +27,10 @@ export function getRoles() {
   return request('/roles')
 }
 
+export function getThresholds() {
+  return request('/config/thresholds')
+}
+
 export function getEval() {
   return request('/eval')
 }

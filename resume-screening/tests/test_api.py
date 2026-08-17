@@ -422,3 +422,10 @@ def test_eval_returns_current_thresholds(client):
     body = client.get("/eval", headers=_auth()).json()
     assert set(body["thresholds"]) == {"general", "specific", "total"}
     assert isinstance(body["thresholds"]["general"], int)
+
+
+def test_config_thresholds_endpoint(client):
+    """/config/thresholds 返回当前生效阈值（含 env 覆盖）。"""
+    body = client.get("/config/thresholds", headers=_auth()).json()
+    assert set(body["thresholds"]) == {"general", "specific", "total"}
+    assert isinstance(body["thresholds"]["general"], int)
