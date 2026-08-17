@@ -9,6 +9,10 @@ import json
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
 from ..config import load_config
 from ..doc_loader.base import LoaderError, doc_to_text, resolve_loader_names
 from ..persistence.jd_map import jd_text, load_jd_map
@@ -24,6 +28,7 @@ DEFAULT_DATASETS = Path(__file__).resolve().parent.parent.parent / "datasets"
 
 
 def main(argv=None) -> int:
+    load_dotenv(REPO_ROOT / ".env")  # 凭据从项目根 .env 加载
     parser = argparse.ArgumentParser(description="筛一份简历并写入 manifest")
     parser.add_argument("resume", nargs="?", help="简历文件（PDF）")
     parser.add_argument("--jd", help="jd_map 中的岗位 key")

@@ -4,6 +4,13 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.3 — 2026-08-17
+
+### Added
+- layout-parsing 远程文档解析接入（实测契约：POST JSON `{"file": base64}` + Bearer；响应 `result.layoutParsingResults[].markdown.text` 多页拼接），作为 doc_loader 主力
+- paddleocr 本地兜底模块（未安装时抛 LoaderError 自动降级；需 `pip install paddleocr paddlepaddle` 激活）
+- CLI 加载项目根 `.env`（python-dotenv），凭据本地化不硬编码
+
 ## V0.2 — 2026-08-17
 
 ### Added

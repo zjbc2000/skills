@@ -19,3 +19,20 @@ def json_validator():
             raise SchemaError(f"invalid json: {e}") from e
 
     return validate
+
+
+class FakeResponse:
+    def __init__(self, status=200, text="", json_body=None):
+        self.status_code = status
+        self.text = text
+        self._json = json_body
+
+    def json(self):
+        if self._json is not None:
+            return self._json
+        return json.loads(self.text)
+
+
+@pytest.fixture
+def fake_response():
+    return FakeResponse

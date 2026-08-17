@@ -7,6 +7,15 @@ import pytest
 
 from backend.cli.screen import main
 
+
+@pytest.fixture(autouse=True)
+def _block_external_deps(monkeypatch):
+    """CLI 内 load_dotenv 会读真实 .env；预置空值阻止其覆盖（override=False），
+    保证测试走本地降级链、不触真实网络/凭据。"""
+    for key in ("LAYOUT_PARSING_URL", "LAYOUT_PARSING_TOKEN", "ARK_API_KEY", "DEEPSEEK_API_KEY"):
+        monkeypatch.setenv(key, "")
+
+
 RESUME_TEXT = (
     "Zhang San - Senior Engineer\n"
     "3 years of experience with react and python.\n"

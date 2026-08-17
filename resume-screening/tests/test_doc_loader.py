@@ -51,12 +51,25 @@ def test_mixed_pages_not_flagged_scanned(tmp_path):
     assert "react" in extract_text(pdf)
 
 
-def test_doc_to_text_skips_unimplemented_and_uses_fallback(tmp_path):
+def test_doc_to_text_falls_back_when_primary_fails(tmp_path):
     pdf = _make_pdf(tmp_path / "r.pdf")
-    # layout_parsing 未实现（T05 才有），应跳过并落到 local_pymupdf
+    # layout_parsing 缺凭据（测试环境无 .env）→ 应落到 local_pymupdf
     res = doc_to_text(pdf, ["layout_parsing", "local_pymupdf"])
     assert "react" in res.text
     assert res.loader == "local_pymupdf"
+
+
+def test_doc_to_text_uses_layout_parsing_when_available(tmp_path, monkeypatch, fake_response):
+    import backend.doc_loader.layout_parsing as lp
+
+    pdf = _make_pdf(tmp_path / "r.pdf")
+    monkeypatch.setenv("LAYOUT_PARSING_URL", "https://x")
+    monkeypatch.setenv("LAYOUT_PARSING_TOKEN", "tok")
+    body = {"errorCode": 0, "result": {"layoutParsingResults": [{"markdown": {"text": "# Parsed markdown"}}]}}
+    monkeypatch.setattr(lp.requests, "post", lambda *a, **k: fake_response(200, json_body=body))
+    res = doc_to_text(pdf, ["layout_parsing", "local_pymupdf"])
+    assert res.loader == "layout_parsing"
+    assert "# Parsed markdown" in res.text
 
 
 def test_doc_to_text_raises_when_all_fail(tmp_path):
