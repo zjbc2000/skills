@@ -59,10 +59,13 @@ export function getTask(taskId) {
   return request(`/tasks/${taskId}`)
 }
 
-/** 轮询任务直至 done/failed；onLog 每次拿到累计日志（含新增行）。 */
+/**
+ * 轮询任务直至 done/failed；onLog 每次拿到累计日志（含新增行）。
+ * 超时不抛页面错误：触发 onTimeout（由调用方写入日志面板），返回 null。
+ */
 export async function waitTask(
   taskId,
-  { onLog, interval = 1200, timeout = 180000 } = {},
+  { onLog, onTimeout, interval = 1200, timeout = 180000 } = {},
 ) {
   const deadline = Date.now() + timeout
   let last = 0
@@ -78,7 +81,9 @@ export async function waitTask(
     }
     if (t.status === 'failed') throw new Error(t.error || '任务失败')
     if (Date.now() > deadline) {
-      throw new Error('任务超时（3 分钟未完成），请查看后端 var/log/api.log')
+      if (onTimeout) onTimeout()
+      console.warn('[task] 轮询超时，任务仍在后台执行:', taskId)
+      return null
     }
     await new Promise((r) => setTimeout(r, interval))
   }

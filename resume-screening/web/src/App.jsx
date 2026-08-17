@@ -20,8 +20,13 @@ export default function App() {
     <div className="shell">
       <Sidebar active={view} onSelect={setView} />
       <main className="content">
-        {view === 'screen' && <ScreenView key={rolesVersion} />}
-        {view === 'jd' && <JdView onSaved={() => setRolesVersion((v) => v + 1)} />}
+        {/* 含异步任务的视图常驻（hidden 而非卸载），切换栏后任务/日志/结果不丢失 */}
+        <div hidden={view !== 'screen'}>
+          <ScreenView key={rolesVersion} />
+        </div>
+        <div hidden={view !== 'jd'}>
+          <JdView onSaved={() => setRolesVersion((v) => v + 1)} />
+        </div>
         {view === 'history' && <HistoryView key={rolesVersion} />}
         {view === 'dashboard' && <DashboardView />}
         {view === 'eval' && <EvalView />}
