@@ -429,3 +429,32 @@ def test_config_thresholds_endpoint(client):
     body = client.get("/config/thresholds", headers=_auth()).json()
     assert set(body["thresholds"]) == {"general", "specific", "total"}
     assert isinstance(body["thresholds"]["general"], int)
+
+
+def test_save_thresholds_writes_and_validates(client, tmp_path, monkeypatch):
+    """POST /config/thresholds 写回 G/S/T（tmp 配置），非法值 400。"""
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "models.yml").write_text(
+        "providers:\n  p:\n    base_url: http://x\n    api_key_env: K\n    models: [m]\n"
+        "default:\n  provider: p\n  model: m\n", encoding="utf-8")
+    (cfg_dir / "tools.yml").write_text("doc_loader:\n  primary: local_pymupdf\n", encoding="utf-8")
+    (cfg_dir / "thresholds.yml").write_text(
+        "general: 30\nspecific: 15\ntotal: 45\n", encoding="utf-8")
+    monkeypatch.setenv("RESUME_CONFIG", str(cfg_dir))
+
+    r = client.post("/config/thresholds", headers=_auth(),
+                    json={"general": 33, "specific": 18, "total": 50})
+    assert r.status_code == 200
+    assert r.json()["thresholds"] == {"general": 33, "specific": 18, "total": 50}
+    text = (cfg_dir / "thresholds.yml").read_text(encoding="utf-8")
+    assert "general: 33" in text and "specific: 18" in text and "total: 50" in text
+
+    # 只改一个字段
+    r = client.post("/config/thresholds", headers=_auth(), json={"total": 60})
+    assert r.json()["thresholds"] == {"general": 33, "specific": 18, "total": 60}
+
+    # 非法
+    assert client.post("/config/thresholds", headers=_auth(), json={"general": -1}).status_code == 400
+    assert client.post("/config/thresholds", headers=_auth(), json={"general": "x"}).status_code == 400
+    assert client.post("/config/thresholds", headers=_auth(), json={}).status_code == 400

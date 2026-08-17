@@ -71,6 +71,38 @@ def config_thresholds() -> dict:
     return {"thresholds": load_config(_config_dir()).thresholds}
 
 
+@app.post("/config/thresholds", dependencies=[Depends(_require_api_key)])
+def save_config_thresholds(body: dict) -> dict:
+    """直接改 G/S/T 阈值：写回 config/thresholds.yml（保留注释头）。
+
+    只更新传入的字段（general/specific/total 任意子集）；注意若设置了
+    THRESH_* 环境变量，则以环境变量为准（load_config 优先 env）。
+    """
+    path = _config_dir() / "thresholds.yml"
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=400, detail=f"缺少配置文件: {path}") from e
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="thresholds.yml 结构非法")
+
+    changed = []
+    for key in ("general", "specific", "total"):
+        if key in body:
+            v = body[key]
+            if not isinstance(v, int) or isinstance(v, bool) or v < 0:
+                raise HTTPException(status_code=400, detail=f"{key} 应为非负整数")
+            data[key] = v
+            changed.append(key)
+    if not changed:
+        raise HTTPException(status_code=400, detail="至少提供一个阈值字段")
+
+    header = "# 判定阈值（SPEC §3.3）\n# 通用模式：G>=general 且 T>=total；特定模式：S>=specific\n"
+    header += "# 运行时可被环境变量覆盖：THRESH_GENERAL / THRESH_SPECIFIC / THRESH_TOTAL（不落盘）\n"
+    path.write_text(header + yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    return {"thresholds": data}
+
+
 @app.get("/roles", dependencies=[Depends(_require_api_key)])
 def roles() -> dict:
     try:

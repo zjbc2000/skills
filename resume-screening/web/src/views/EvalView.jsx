@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { applyThreshold, getEval, setLabel } from '../api.js'
+import { applyThreshold, getEval, saveThresholds, setLabel } from '../api.js'
 
 export default function EvalView() {
   const [data, setData] = useState(null)
+  const [tForm, setTForm] = useState(null) // 阈值编辑表单 {general, specific, total}
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -11,7 +12,13 @@ export default function EvalView() {
     setError('')
     setBusy(true)
     try {
-      setData(await getEval())
+      const d = await getEval()
+      setData(d)
+      setTForm((f) =>
+        f === null
+          ? { ...d.thresholds }
+          : f,
+      )
     } catch (err) {
       setError(err.message)
     } finally {
@@ -30,6 +37,25 @@ export default function EvalView() {
       await refresh()
     } catch (err) {
       setError(err.message)
+    }
+  }
+
+  async function onSaveThresholds() {
+    setError('')
+    setNotice('')
+    setBusy(true)
+    try {
+      const { thresholds } = await saveThresholds({
+        general: Number(tForm.general),
+        specific: Number(tForm.specific),
+        total: Number(tForm.total),
+      })
+      setNotice(`阈值已保存：G≥${thresholds.general} · S≥${thresholds.specific} · T≥${thresholds.total}`)
+      await refresh()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -60,13 +86,40 @@ export default function EvalView() {
             {busy ? '计算中…' : '刷新'}
           </button>
         </div>
-        {data && (
+        {data && tForm && (
           <div className="eval-thresholds">
-            当前生效阈值：
-            <span className="tag tag-pass">G ≥ {data.thresholds?.general}</span>
-            <span className="tag tag-pass">T ≥ {data.thresholds?.total}</span>
-            <span className="tag tag-pass">S ≥ {data.thresholds?.specific}</span>
-            <span className="muted">（可用环境变量 THRESH_GENERAL / THRESH_SPECIFIC / THRESH_TOTAL 覆盖）</span>
+            <span className="muted">阈值</span>
+            <label className="t-input">
+              G
+              <input
+                type="number"
+                min="0"
+                value={tForm.general}
+                onChange={(e) => setTForm({ ...tForm, general: e.target.value })}
+              />
+            </label>
+            <label className="t-input">
+              S
+              <input
+                type="number"
+                min="0"
+                value={tForm.specific}
+                onChange={(e) => setTForm({ ...tForm, specific: e.target.value })}
+              />
+            </label>
+            <label className="t-input">
+              T
+              <input
+                type="number"
+                min="0"
+                value={tForm.total}
+                onChange={(e) => setTForm({ ...tForm, total: e.target.value })}
+              />
+            </label>
+            <button className="mini primary" onClick={onSaveThresholds} disabled={busy}>
+              保存
+            </button>
+            <span className="muted">（设置了 THRESH_* 环境变量时以环境变量为准）</span>
           </div>
         )}
         {data && data.labeled > 0 && data.best && (
