@@ -48,8 +48,6 @@ export default function ScreenView({ onRolesLoaded }) {
       const { task_id } = await screenBatch(files, { jd, mode })
       const result = await waitTask(task_id, {
         onLog: (lines) => setLogs(lines),
-        onTimeout: () =>
-          setLogs((ls) => [...ls, '⚠ 任务超时（3 分钟未完成），任务仍在后台执行']),
       })
       if (result) setResults(result)
     } catch (err) {

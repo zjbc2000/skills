@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import Dropdown from '../components/Dropdown.jsx'
-import { clearUsage, getDashboard, getModels, getProviders, saveProvider, setDefaultModel } from '../api.js'
+import { clearUsage, getDashboard, getModels, getProviders, setDefaultModel } from '../api.js'
+import ProviderModal from './ProviderModal.jsx'
 
 export default function DashboardView() {
   const [data, setData] = useState(null)
   const [models, setModels] = useState(null)
   const [defaultSel, setDefaultSel] = useState(null) // "provider/model"
   const [providers, setProviders] = useState(null)
-  const [pForm, setPForm] = useState({ provider: '', base_url: '', api_key: '', model: '' })
+  const [providerModal, setProviderModal] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -56,21 +57,10 @@ export default function DashboardView() {
     }
   }
 
-  async function onSaveProvider(e) {
-    e.preventDefault()
-    setError('')
-    setNotice('')
-    setBusy(true)
-    try {
-      await saveProvider(pForm)
-      setNotice(`端点已配置：${pForm.provider}（key 写入 .env 的 ${pForm.provider.toUpperCase().replace(/-/g, '_')}_API_KEY）`)
-      setPForm({ provider: '', base_url: '', api_key: '', model: '' })
-      await refresh()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
-    }
+  async function onProviderSaved() {
+    setProviderModal(false)
+    setNotice('端点已配置')
+    await refresh()
   }
 
   const s = data?.summary
@@ -119,38 +109,11 @@ export default function DashboardView() {
       <section className="card">
         <div className="row-between">
           <h2>API 端点</h2>
-        </div>
-        <p className="muted">仅支持 OpenAI 兼容协议：填 provider 名 / base_url / api_key / 模型名，保存后即可在默认模型下拉选用。</p>
-        <form onSubmit={onSaveProvider} className="provider-form">
-          <input
-            className="pf"
-            placeholder="provider 名（如 qwen）"
-            value={pForm.provider}
-            onChange={(e) => setPForm({ ...pForm, provider: e.target.value })}
-          />
-          <input
-            className="pf pf-wide"
-            placeholder="base_url（如 https://dashscope.aliyuncs.com/compatible-mode/v1）"
-            value={pForm.base_url}
-            onChange={(e) => setPForm({ ...pForm, base_url: e.target.value })}
-          />
-          <input
-            className="pf pf-wide"
-            placeholder="api_key"
-            type="password"
-            value={pForm.api_key}
-            onChange={(e) => setPForm({ ...pForm, api_key: e.target.value })}
-          />
-          <input
-            className="pf"
-            placeholder="模型名（如 qwen-max）"
-            value={pForm.model}
-            onChange={(e) => setPForm({ ...pForm, model: e.target.value })}
-          />
-          <button className="primary" disabled={busy}>
-            {busy ? '保存中…' : '添加端点'}
+          <button className="mini primary" onClick={() => setProviderModal(true)} aria-label="添加 API 端点">
+            + 添加
           </button>
-        </form>
+        </div>
+        <p className="muted">仅支持 OpenAI 兼容协议（base_url + api_key）。</p>
         {providers && (
           <table className="table provider-table">
             <thead>
@@ -234,6 +197,14 @@ export default function DashboardView() {
         )}
         {!data?.recent?.length && <p className="muted">暂无调用</p>}
       </section>
+
+      {providerModal && (
+        <ProviderModal
+          busy={busy}
+          onClose={() => setProviderModal(false)}
+          onSaved={onProviderSaved}
+        />
+      )}
     </>
   )
 }

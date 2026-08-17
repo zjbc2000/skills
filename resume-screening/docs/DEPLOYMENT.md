@@ -28,9 +28,36 @@ X_API_KEY=          # 前端访问后端的共享令牌
 ```
 其余为可选项（飞书 bot、阈值 env 覆盖 `THRESH_*`）。
 
-## Docker 部署
+## 无 Docker 服务器部署（联网即可，无需 Dockerfile）
 
-架构：`api` 容器跑 FastAPI（8000），`web` 容器用 nginx 服务前端静态文件（8080）；前端编译时 `VITE_API_BASE` 指向宿主 `http://localhost:8000`。
+如果服务器能访问外网，可以直接装依赖跑，Docker 只是可选：
+
+```bash
+# 1. 依赖与配置
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env        # 填 key
+
+# 2. 构建前端
+cd web && npm install && npm run build && cd ..
+
+# 3. 启动 API（后台，日志落 var/log）
+mkdir -p var/log
+nohup .venv/bin/python -m backend.cli.api >> var/log/api.log 2>&1 &
+
+# 4. 前端静态文件交给 nginx（或任意静态服务器）
+#    将 web/dist 指到 nginx root，反向代理 / 到后端：
+#    server {
+#      listen 80;
+#      root /srv/ae/web/dist;
+#      location / { try_files $uri /index.html; }
+#    }
+#    前端构建时 VITE_API_BASE 指向 http://<服务器IP>:8000（默认即 localhost:8000，按需改）
+```
+
+## Docker 部署（可选）
+
+Dockerfile 用于**环境隔离**（统一 Python/Node 版本、免装系统依赖）；服务器已联网且环境干净时，上节直接部署更简单。架构：`api` 容器跑 FastAPI（8000），`web` 容器用 nginx 服务前端静态文件（8080）；前端编译时 `VITE_API_BASE` 指向宿主 `http://localhost:8000`。
 
 ### 步骤
 ```bash

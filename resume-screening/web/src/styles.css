@@ -667,49 +667,8 @@ button.link:hover {
 }
 
 /* ---------- v0.30：API 端点配置 ---------- */
-.provider-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-  margin: var(--space-3) 0;
-}
-
-.pf {
-  background: var(--surface-2);
-  color: var(--fg);
-  border: var(--border-w) solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-  font: inherit;
-  font-size: var(--text-xs);
-}
-
-.pf:focus {
-  border-color: var(--accent);
-  outline: none;
-}
-
-.pf-wide {
-  grid-column: span 2;
-}
-
-.provider-form button {
-  grid-column: span 2;
-  justify-self: start;
-}
-
 .provider-table {
   margin-top: var(--space-2);
-}
-
-@media (max-width: 640px) {
-  .provider-form {
-    grid-template-columns: 1fr;
-  }
-  .pf-wide,
-  .provider-form button {
-    grid-column: span 1;
-  }
 }
 
 /* ---------- v0.25：筛简历页两栏 + 虚线文件栏 ---------- */

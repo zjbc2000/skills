@@ -4,6 +4,15 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.31 — 2026-08-18
+
+### Changed
+- 移除「⚠ 任务超时」提示：`waitTask` 超时静默停止轮询返回 null（任务后台继续），真实模型报错自然以 failed 状态显示在日志面板
+- 模型面板「API 端点」改为右上角「+ 添加」按钮 + 弹窗（ProviderModal，OpenAI 兼容四字段），去掉内联表单
+
+### Added
+- `docs/DEPLOYMENT.md` 补充「无 Docker 服务器部署」：联网服务器直接 venv + pip install + nohup 起 API + nginx 服务 dist（Dockerfile 仅作可选的环境隔离方案）
+
 ## V0.30 — 2026-08-18
 
 ### Added

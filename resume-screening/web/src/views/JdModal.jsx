@@ -43,8 +43,6 @@ export default function JdModal({ jd, onClose, onSave, busy }) {
       const { task_id } = await extractJd(jdRaw)
       const fields = await waitTask(task_id, {
         onLog: (lines) => setLogs(lines),
-        onTimeout: () =>
-          setLogs((ls) => [...ls, '⚠ 任务超时（3 分钟未完成），任务仍在后台执行']),
       })
       if (fields) {
         setForm((f) => ({
