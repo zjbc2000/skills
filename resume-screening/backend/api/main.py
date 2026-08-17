@@ -26,7 +26,7 @@ from ..registry.fake import fake_jd_call_fn
 from ..registry.llm_client import FailedQueue, LLMClient, LLMError
 from ..registry.openai_adapter import make_call_fn
 from ..scoring.engine import MODES
-from ..scoring.prompts import build_jd_extract_prompt
+from ..scoring.prompts import JD_EXTRACT_SYSTEM_PROMPT, build_jd_extract_prompt
 from ..scoring.schema import validate_jd_output, validate_llm_output
 from ..screening.pipeline import ScreeningError, screen_file
 from ..tasks import tasks
@@ -34,7 +34,7 @@ from ..tasks import tasks
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(REPO_ROOT / ".env")
 
-app = FastAPI(title="resume-screening API", version="0.15")
+app = FastAPI(title="resume-screening API", version="0.18")
 
 app.add_middleware(
     CORSMiddleware,
@@ -191,11 +191,13 @@ def _run_jd_extract(log, jd_raw: str, llm: str) -> dict:
     """任务线程内调用 LLM 抽取 JD 字段。"""
     log(f"JD 抽取中（{len(jd_raw)} 字符原文）…")
     cfg = load_config(_config_dir())
-    call = fake_jd_call_fn() if llm == "fake" else make_call_fn(cfg)
+    call = fake_jd_call_fn() if llm == "fake" else make_call_fn(cfg, system_prompt=JD_EXTRACT_SYSTEM_PROMPT)
+    # JD 抽取是轻交互任务：低重试 + 单次 60s 超时，失败快速报错而非长时间重试
     client = LLMClient(
         chain=cfg.fallback_chain,
         call_fn=call,
         validator=validate_jd_output,
+        max_retries=1,
         failed_queue=FailedQueue(path=_datasets_dir() / "failed.jsonl"),
     )
     fields = client.complete(build_jd_extract_prompt(jd_raw))

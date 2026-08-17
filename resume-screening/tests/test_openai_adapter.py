@@ -1,81 +1,96 @@
-"""OpenAI 兼容适配器：错误映射与成功路径（T04）。"""
+"""真实 LLM 适配（T11）：调用带超时、异常映射、空响应兜底（不联网）。"""
 from __future__ import annotations
 
-import types
-
-import httpx
 import pytest
-from openai import APIConnectionError, APIStatusError
 
-import backend.registry.openai_adapter as adapter_mod
-from backend.registry.llm_client import LLMError, TransientError
+from backend.registry import openai_adapter
 
 
-def _cfg():
-    return types.SimpleNamespace(providers={"p": {"base_url": "https://x", "api_key_env": "KEY"}})
+def _cfg(provider="p"):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        providers={provider: {"api_key_env": "TEST_KEY", "base_url": "http://fake"}}
+    )
 
 
-def _fake_client(behavior):
+def test_call_fn_sets_request_timeout(monkeypatch):
+    """SDK 默认 600s 会导致任务线程长时间阻塞——必须显式传 timeout。"""
+    captured = {}
+
     class FakeCompletions:
-        def create(self, **kw):
-            if isinstance(behavior, Exception):
-                raise behavior
-            return types.SimpleNamespace(
-                choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=behavior))]
-            )
+        def create(self, **kwargs):
+            content = type("M", (), {"content": "{}"})()
+            msg = type("Msg", (), {"message": content})()
+            return type("Resp", (), {"choices": [msg]})()
 
-    class FakeChat:
-        completions = FakeCompletions()
+    class FakeClient:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            self.chat = type(
+                "Chat", (), {"completions": FakeCompletions()}
+            )()
 
-    client = types.SimpleNamespace()
-    client.chat = FakeChat()
-    return client
+    monkeypatch.setattr(openai_adapter, "OpenAI", FakeClient)
+    monkeypatch.setenv("TEST_KEY", "k")
+
+    fn = openai_adapter.make_call_fn(_cfg())
+    assert fn("p", "m", "hello") == "{}"
+    assert captured["timeout"] == openai_adapter.REQUEST_TIMEOUT_SECONDS
+    assert captured["base_url"] == "http://fake"
+    assert captured["api_key"] == "k"
 
 
-def _patch_openai(monkeypatch, behavior):
-    monkeypatch.setenv("KEY", "k")
-    monkeypatch.setattr(adapter_mod, "OpenAI", lambda base_url, api_key: _fake_client(behavior))
+def test_call_fn_uses_custom_system_prompt(monkeypatch):
+    """JD 抽取必须用 JD 提示词而非评分提示词，否则模型按评分格式输出、
+    校验永远失败、触发全链重试（表现为任务长时间挂起）。"""
+    from backend.scoring.prompts import JD_EXTRACT_SYSTEM_PROMPT
+
+    captured = {}
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            content = type("M", (), {"content": "{}"})()
+            msg = type("Msg", (), {"message": content})()
+            return type("Resp", (), {"choices": [msg]})()
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.chat = type("Chat", (), {"completions": FakeCompletions()})()
+
+    monkeypatch.setattr(openai_adapter, "OpenAI", FakeClient)
+    monkeypatch.setenv("TEST_KEY", "k")
+
+    fn = openai_adapter.make_call_fn(_cfg(), system_prompt=JD_EXTRACT_SYSTEM_PROMPT)
+    fn("p", "m", "jd raw")
+    assert captured["messages"][0]["content"] == JD_EXTRACT_SYSTEM_PROMPT
 
 
-def test_missing_env_raises(monkeypatch):
-    monkeypatch.delenv("KEY", raising=False)
-    call = adapter_mod.make_call_fn(_cfg())
+def test_call_fn_missing_api_key_raises_llm_error(monkeypatch):
+    from backend.registry.llm_client import LLMError
+
+    monkeypatch.delenv("TEST_KEY", raising=False)
+    fn = openai_adapter.make_call_fn(_cfg())
     with pytest.raises(LLMError):
-        call("p", "m", "hi")
+        fn("p", "m", "hi")
 
 
-def test_success_returns_content(monkeypatch):
-    _patch_openai(monkeypatch, "RESP")
-    call = adapter_mod.make_call_fn(_cfg())
-    assert call("p", "m", "hi") == "RESP"
+def test_call_fn_empty_content_raises_llm_error(monkeypatch):
+    from backend.registry.llm_client import LLMError
 
+    class FakeCompletions:
+        def create(self, **kwargs):
+            return type("Resp", (), {"choices": []})()
 
-def test_429_maps_to_transient(monkeypatch):
-    req = httpx.Request("POST", "https://x")
-    _patch_openai(monkeypatch, APIStatusError("rl", response=httpx.Response(429, request=req), body=None))
-    call = adapter_mod.make_call_fn(_cfg())
-    with pytest.raises(TransientError):
-        call("p", "m", "hi")
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.chat = type(
+                "Chat", (), {"completions": FakeCompletions()}
+            )()
 
-
-def test_401_maps_to_non_transient(monkeypatch):
-    req = httpx.Request("POST", "https://x")
-    _patch_openai(monkeypatch, APIStatusError("auth", response=httpx.Response(401, request=req), body=None))
-    call = adapter_mod.make_call_fn(_cfg())
+    monkeypatch.setattr(openai_adapter, "OpenAI", FakeClient)
+    monkeypatch.setenv("TEST_KEY", "k")
+    fn = openai_adapter.make_call_fn(_cfg())
     with pytest.raises(LLMError):
-        call("p", "m", "hi")
-
-
-def test_501_maps_to_transient(monkeypatch):
-    req = httpx.Request("POST", "https://x")
-    _patch_openai(monkeypatch, APIStatusError("impl", response=httpx.Response(501, request=req), body=None))
-    call = adapter_mod.make_call_fn(_cfg())
-    with pytest.raises(TransientError):
-        call("p", "m", "hi")
-
-
-def test_connection_error_maps_to_transient(monkeypatch):
-    _patch_openai(monkeypatch, APIConnectionError(request=httpx.Request("POST", "https://x")))
-    call = adapter_mod.make_call_fn(_cfg())
-    with pytest.raises(TransientError):
-        call("p", "m", "hi")
+        fn("p", "m", "hi")

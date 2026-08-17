@@ -56,7 +56,11 @@ export function getTask(taskId) {
 }
 
 /** 轮询任务直至 done/failed；onLog 每次拿到累计日志（含新增行）。 */
-export async function waitTask(taskId, { onLog, interval = 1200 } = {}) {
+export async function waitTask(
+  taskId,
+  { onLog, interval = 1200, timeout = 180000 } = {},
+) {
+  const deadline = Date.now() + timeout
   let last = 0
   for (;;) {
     const t = await getTask(taskId)
@@ -69,6 +73,9 @@ export async function waitTask(taskId, { onLog, interval = 1200 } = {}) {
       return t.result
     }
     if (t.status === 'failed') throw new Error(t.error || '任务失败')
+    if (Date.now() > deadline) {
+      throw new Error('任务超时（3 分钟未完成），请查看后端 var/log/api.log')
+    }
     await new Promise((r) => setTimeout(r, interval))
   }
 }
