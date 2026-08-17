@@ -15,14 +15,17 @@ def load_jd_map(path: Union[Path, str]) -> dict:
 
 
 def jd_text(jd: dict) -> str:
-    """把一条 JD 渲染成给 LLM 的文本（岗位 + 技能要求 + 红线）。"""
+    """把一条 JD 渲染成给 LLM 的文本（岗位 + 技能要求 + 红线）。
+
+    技能要求逐行渲染以保留章节结构；非字符串条目跳过（防脏数据崩溃）。
+    """
     parts = []
     if jd.get("position"):
         parts.append(f"岗位：{jd['position']}")
-    skills = jd.get("skills", [])
+    skills = [s for s in jd.get("skills", []) if isinstance(s, str)]
     if skills:
-        parts.append("技能要求：" + ", ".join(skills))
-    reds = jd.get("red_lines", [])
+        parts.append("技能要求：\n" + "\n".join(skills))
+    reds = [r for r in jd.get("red_lines", []) if isinstance(r, str)]
     if reds:
         parts.append("红线：" + ", ".join(reds))
     return "\n".join(parts)

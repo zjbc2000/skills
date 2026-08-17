@@ -30,3 +30,20 @@ def test_jd_text_renders_requirements(tmp_path):
     assert "高级AE工程师" in text
     assert "react" in text
     assert "paddleocr" in text
+
+
+def test_jd_text_skips_non_string_skills(tmp_path):
+    """防脏数据崩溃：skills 里混入映射/数字时跳过而非 TypeError。"""
+    f = tmp_path / "jd_map.yml"
+    f.write_text(
+        "roles:\n"
+        "  R:\n"
+        "    position: P\n"
+        '    skills: [{"岗位职责": null}, "react", 123]\n'
+        '    red_lines: ["红线x"]\n',
+        encoding="utf-8",
+    )
+    text = jd_text(load_jd_map(f)["R"])
+    assert "react" in text
+    assert "123" not in text
+    assert "{" not in text
