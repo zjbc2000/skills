@@ -45,3 +45,17 @@ def screen_file(resume_path, jd_ref: str, mode: str, cfg: AppConfig, datasets_di
     verdict = assess(data, mode, cfg.thresholds)
     snapshot = verify_snapshot(verdict.snapshot, doc.text)
     return {"verdict": verdict, "snapshot": snapshot, "doc": doc}
+
+
+def build_summary(result: dict) -> str:
+    """把筛简历结果渲染成纯文本摘要（CLI / 飞书 bot 共用）。"""
+    v = result["verdict"]
+    snap = result["snapshot"]
+    lines = [
+        f"判定：{snap['verdict'].upper()}",
+        f"G={v.g} S={v.s} T={v.t}（阈值 G≥{snap['thresholds']['general']} 且 T≥{snap['thresholds']['total']}）",
+    ]
+    if v.red_lines_hit:
+        lines.append("红线命中：" + "、".join(v.red_lines_hit))
+    lines.append(f"解析器：{result['doc'].loader}")
+    return "\n".join(lines)

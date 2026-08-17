@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional, Set
 
+from ..screening.pipeline import build_summary
 from .base import Channel, ChannelError
 
 
@@ -64,7 +65,7 @@ def make_handler(channel: Channel, screener: Callable, whitelist: Set[str], runn
 
         def work():
             try:
-                summary = screener(parsed.file_key, parsed.message_id)
+                summary = screener(parsed.file_key, parsed.message_id, parsed.file_name)
             except Exception as e:  # noqa: BLE001 —— 出错必须回执，不静默
                 channel.notify(parsed.chat_id, f"处理失败：{e}")
                 return
@@ -73,20 +74,6 @@ def make_handler(channel: Channel, screener: Callable, whitelist: Set[str], runn
         run_fn(work)
 
     return handle
-
-
-def build_summary(result: dict) -> str:
-    """把筛简历结果渲染成纯文本摘要。"""
-    v = result["verdict"]
-    snap = result["snapshot"]
-    lines = [
-        f"判定：{snap['verdict'].upper()}",
-        f"G={v.g} S={v.s} T={v.t}（阈值 G≥{snap['thresholds']['general']} 且 T≥{snap['thresholds']['total']}）",
-    ]
-    if v.red_lines_hit:
-        lines.append("红线命中：" + "、".join(v.red_lines_hit))
-    lines.append(f"解析器：{result['doc'].loader}")
-    return "\n".join(lines)
 
 
 class FeishuChannel(Channel):
@@ -115,10 +102,10 @@ class FeishuChannel(Channel):
 
 
 def make_lark_screener(client, screen_fn: Callable[[Path], dict]) -> Callable:
-    """下载消息文件 → 跑管线 → 纯文本摘要。"""
+    """下载消息文件 → 跑管线 → 纯文本摘要（zip 走安全解压逐份筛）。"""
     from lark_oapi.api.im.v1 import GetMessageResourceRequest
 
-    def screener(file_key: str, message_id: str) -> str:
+    def screener(file_key: str, message_id: str, file_name: str = None) -> str:
         req = (
             GetMessageResourceRequest.builder()
             .message_id(message_id)
@@ -130,11 +117,17 @@ def make_lark_screener(client, screen_fn: Callable[[Path], dict]) -> Callable:
         if not resp.success():
             raise ChannelError(f"下载失败: {resp.code} {resp.msg}")
         blob = resp.data.file if hasattr(resp.data, "file") else resp.data.resource
-        fd, tmp = tempfile.mkstemp(suffix=".pdf")
+        suffix = Path(file_name or "resume.pdf").suffix.lower() or ".pdf"
+        fd, tmp = tempfile.mkstemp(suffix=suffix)
         with os.fdopen(fd, "wb") as f:
             f.write(blob)
         try:
-            return build_summary(screen_fn(Path(tmp)))
+            tmp_path = Path(tmp)
+            if suffix == ".zip":
+                from ..archive import screen_archive
+
+                return screen_archive(tmp_path, screen_fn)
+            return build_summary(screen_fn(tmp_path))
         finally:
             Path(tmp).unlink(missing_ok=True)
 

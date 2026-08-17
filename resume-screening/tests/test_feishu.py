@@ -1,12 +1,8 @@
 """飞书长连接 bot 逻辑（T08）：消息解析、白名单、异步筛选、回复。"""
 from __future__ import annotations
 
-from backend.channels.feishu import (
-    ParsedMessage,
-    build_summary,
-    make_handler,
-    parse_message,
-)
+from backend.channels.feishu import ParsedMessage, make_handler, parse_message
+from backend.screening.pipeline import build_summary
 
 
 class FakeChannel:
@@ -53,7 +49,7 @@ def test_parse_bad_content_safe():
 def test_handler_blocks_non_whitelisted_chat():
     ch = FakeChannel()
     calls = []
-    handler = make_handler(ch, lambda fk, mid: calls.append(fk) or "ok",
+    handler = make_handler(ch, lambda fk, mid, name: calls.append(fk) or "ok",
                            whitelist={"oc_good"}, runner=lambda fn: fn())
     handler(_parsed(chat_id="oc_bad"))
     assert calls == []
@@ -63,16 +59,16 @@ def test_handler_blocks_non_whitelisted_chat():
 def test_handler_whitelisted_chat_screens_and_replies():
     ch = FakeChannel()
     seen = []
-    handler = make_handler(ch, lambda fk, mid: seen.append((fk, mid)) or "判定：PASS",
+    handler = make_handler(ch, lambda fk, mid, name: seen.append((fk, mid, name)) or "判定：PASS",
                            whitelist={"oc_1"}, runner=lambda fn: fn())
     handler(_parsed())
-    assert seen == [("file_key_1", "om_1")]
+    assert seen == [("file_key_1", "om_1", "r.pdf")]
     assert ch.sent == [("oc_1", "判定：PASS")]
 
 
 def test_handler_non_file_message_prompts_pdf():
     ch = FakeChannel()
-    handler = make_handler(ch, lambda fk, mid: "x", whitelist={"oc_1"}, runner=lambda fn: fn())
+    handler = make_handler(ch, lambda fk, mid, name: "x", whitelist={"oc_1"}, runner=lambda fn: fn())
     handler(_parsed(msg_type="text", file_key=None))
     assert "PDF" in ch.sent[0][1]
 
@@ -80,7 +76,7 @@ def test_handler_non_file_message_prompts_pdf():
 def test_handler_screener_error_reports_failure():
     ch = FakeChannel()
 
-    def bad(fk, mid):
+    def bad(fk, mid, name):
         raise RuntimeError("boom")
 
     handler = make_handler(ch, bad, whitelist={"oc_1"}, runner=lambda fn: fn())
