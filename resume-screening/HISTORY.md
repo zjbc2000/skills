@@ -4,6 +4,11 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.27 — 2026-08-18
+
+### Reverted
+- 回退 v0.26「评测页直接改 G/S/T 阈值」：移除 `POST /config/thresholds` 与评测页三输入框，阈值恢复只读展示 + env 覆盖 +「应用建议阈值」（一键改 total）；保留 `GET /config/thresholds` 与 THRESH_* 环境变量接口
+
 ## V0.26 — 2026-08-18
 
 ### Added

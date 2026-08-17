@@ -31,10 +31,6 @@ export function getThresholds() {
   return request('/config/thresholds')
 }
 
-export function saveThresholds(payload) {
-  return postJson('/config/thresholds', payload)
-}
-
 export function getEval() {
   return request('/eval')
 }
