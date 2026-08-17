@@ -1,16 +1,27 @@
-# AE 工作台 docker 部署
-# 使用：docker compose up -d --build
-# 前端请先构建：cd web && npm run build（dist 挂载进 web 容器）
+# AE 工作台 docker 部署（不需要 Dockerfile 也能跑）
+#
+# 使用：docker compose up -d
+#   - api 直接用官方 python:3.11-slim 镜像 + 挂载源码 + 启动命令装依赖
+#   - web 用 nginx 服务前端 dist（先 cd web && npm run build）
+#
+# 可选：若改用 Dockerfile 构建（依赖打进镜像，启动更快），把 api 服务换成：
+#   build: .
+#   # 并去掉 command / image / volumes 的 . 挂载
 services:
   api:
-    build: .
+    image: python:3.11-slim
     env_file: .env
+    working_dir: /app
+    volumes:
+      - .:/app                 # 源码 + requirements（.env/datasets/config/var 各自覆盖挂载）
+      - ./datasets:/app/datasets   # 简历 / history.db / manifest 持久化
+      - ./config:/app/config       # 阈值 / 默认模型 / providers.local.yml 可写
+      - ./var:/app/var             # 任务日志、pid
+    command: >
+      sh -c "pip install -q --no-cache-dir -r /app/requirements.txt &&
+             python -m backend.cli.api"
     ports:
       - "8000:8000"
-    volumes:
-      - ./datasets:/app/datasets      # 简历数据 / history.db / manifest 持久化
-      - ./config:/app/config          # thresholds / models 可写（阈值、默认模型）
-      - ./var:/app/var                # 任务日志、pid
     restart: unless-stopped
 
   web:

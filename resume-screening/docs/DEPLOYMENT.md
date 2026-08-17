@@ -55,11 +55,13 @@ nohup .venv/bin/python -m backend.cli.api >> var/log/api.log 2>&1 &
 #    前端构建时 VITE_API_BASE 指向 http://<服务器IP>:8000（默认即 localhost:8000，按需改）
 ```
 
-## Docker 部署（可选）
+## Docker 部署
 
-Dockerfile 用于**环境隔离**（统一 Python/Node 版本、免装系统依赖）；服务器已联网且环境干净时，上节直接部署更简单。架构：`api` 容器跑 FastAPI（8000），`web` 容器用 nginx 服务前端静态文件（8080）；前端编译时 `VITE_API_BASE` 指向宿主 `http://localhost:8000`。
+**不写 Dockerfile 也能部署**：`docker-compose.yml` 直接用现成镜像（api 用 `python:3.11-slim` + 挂载源码 + 启动命令装依赖；web 用 `nginx:alpine`），一个文件搞定。仓库里的 `Dockerfile` 是**可选**的构建路径——想更优就把 api 服务换成 `build: .`（依赖打进镜像、启动更快）。
 
-### 步骤
+架构：`api` 容器跑 FastAPI（8000），`web` 容器用 nginx 服务前端静态文件（8080）；前端编译时 `VITE_API_BASE` 指向宿主 `http://localhost:8000`。
+
+### 步骤（无 Dockerfile，直接 compose）
 ```bash
 # 1. 准备 .env（cp .env.example .env 并填 key）
 cp .env.example .env
@@ -67,12 +69,18 @@ cp .env.example .env
 # 2. 构建前端（dist 挂载进 web 容器）
 cd web && npm run build && cd ..
 
-# 3. 构建并启动
-docker compose up -d --build
+# 3. 启动（首次会 pip install 依赖，联网即可）
+docker compose up -d
 
 # 4. 访问
 #    前端 http://localhost:8080
 #    API  http://localhost:8000/health
+```
+
+### 可选：切回 Dockerfile 构建
+```bash
+# 编辑 docker-compose.yml，把 api 服务改为 build: . 并去掉 command/源码挂载
+docker compose up -d --build
 ```
 
 ### 数据与配置持久化

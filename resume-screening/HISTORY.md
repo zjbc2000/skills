@@ -4,6 +4,12 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.32 — 2026-08-18
+
+### Changed
+- `docker-compose.yml` 改为**无需 Dockerfile** 直接用：api 用官方 `python:3.11-slim` + 挂载源码 + 启动命令装依赖，web 用 `nginx:alpine`；`Dockerfile` 保留为可选构建路径（`build: .` 依赖进镜像启动更快）
+- `docs/DEPLOYMENT.md` 更新：明确 compose 直接部署步骤与切回 Dockerfile 的方法
+
 ## V0.31 — 2026-08-18
 
 ### Changed
