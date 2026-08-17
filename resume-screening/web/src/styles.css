@@ -663,6 +663,141 @@ button.link:hover {
   color: var(--danger);
 }
 
+/* ---------- v0.22：JD 管理（卡片 + 弹窗） ---------- */
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.page-head h1 {
+  margin-bottom: var(--space-2);
+}
+
+.page-head h1 + .eyebrow {
+  margin: 0;
+}
+
+.jd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.jd-card {
+  background: var(--surface);
+  border: var(--border-w) solid var(--border);
+  border-left: 2px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.jd-card:hover {
+  border-color: var(--border-strong);
+  border-left-color: var(--accent);
+}
+
+.jd-card-head {
+  margin-bottom: 0;
+}
+
+.jd-key {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.jd-position {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.jd-skills {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  overflow: hidden;
+}
+
+.jd-skills li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jd-red .eyebrow {
+  color: var(--danger);
+}
+
+/* --- 弹窗 --- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.7);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  z-index: 100;
+  overflow: auto;
+}
+
+.modal {
+  width: 100%;
+  max-width: 640px;
+  background: var(--surface);
+  border: var(--border-w) solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.modal-head .link {
+  font-size: var(--text-md);
+  color: var(--muted);
+}
+
+.modal-extract {
+  margin-bottom: var(--space-4);
+  border-bottom: var(--border-w) solid var(--border);
+  padding-bottom: var(--space-4);
+}
+
+.modal-extract .btn-secondary {
+  margin-top: var(--space-2);
+}
+
+.modal-logs {
+  margin-top: var(--space-3);
+  max-height: 120px;
+}
+
+.modal-grid {
+  margin-bottom: var(--space-4);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
 /* ---------- v0.21：评分排行 / 详情表格 / 历史 ---------- */
 .th-num {
   font-variant-numeric: tabular-nums;

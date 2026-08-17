@@ -24,6 +24,20 @@ def save_jd(path: Union[Path, str], key: str, jd: dict) -> None:
         yaml.safe_dump({"roles": roles}, f, allow_unicode=True, sort_keys=False)
 
 
+def update_jd(path: Union[Path, str], old_key: str, key: str, jd: dict) -> None:
+    """更新岗位（key 变更则删旧加新；目标 key 被占抛 ValueError）。"""
+    roles = load_jd_map(path)
+    if old_key not in roles:
+        raise ValueError(f"岗位不存在: {old_key}")
+    if key != old_key and key in roles:
+        raise ValueError(f"岗位已存在: {key}")
+    if key != old_key:
+        del roles[old_key]
+    roles[key] = jd
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.safe_dump({"roles": roles}, f, allow_unicode=True, sort_keys=False)
+
+
 def jd_text(jd: dict) -> str:
     """把一条 JD 渲染成给 LLM 的文本（岗位 + 技能要求 + 红线）。
 

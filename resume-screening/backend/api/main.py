@@ -20,7 +20,7 @@ from ..config import load_config
 from ..doc_loader.base import LoaderError
 from ..eval.run_eval import build_eval_data, build_records
 from ..persistence.history import add_session, get_session, list_sessions
-from ..persistence.jd_map import load_jd_map, save_jd
+from ..persistence.jd_map import load_jd_map, save_jd, update_jd
 from ..persistence.labels import load_labels, save_label
 from ..persistence.manifest import append_record, build_record
 from ..registry.fake import fake_jd_call_fn
@@ -260,6 +260,48 @@ def jd_save(body: dict) -> dict:
         path.write_text("roles: {}\n", encoding="utf-8")
     try:
         save_jd(path, key.strip(), {
+            "position": body.get("position", ""),
+            "skills": skills,
+            "red_lines": red_lines,
+        })
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return {"key": key.strip(), "roles": list(load_jd_map(path).keys())}
+
+
+@app.get("/jd/list", dependencies=[Depends(_require_api_key)])
+def jd_list() -> dict:
+    """全部岗位的结构化内容（卡片展示 / 编辑用）。"""
+    path = _datasets_dir() / "jd_map.yml"
+    if not path.exists():
+        return {"jds": []}
+    jds = [
+        {"key": k, "position": v.get("position", ""), "skills": v.get("skills", []),
+         "red_lines": v.get("red_lines", [])}
+        for k, v in load_jd_map(path).items()
+    ]
+    return {"jds": jds}
+
+
+@app.post("/jd/update", dependencies=[Depends(_require_api_key)])
+def jd_update(body: dict) -> dict:
+    """更新已有岗位（key 变更则迁移）。"""
+    old_key = body.get("old_key")
+    key = body.get("key")
+    if not isinstance(old_key, str) or not old_key.strip():
+        raise HTTPException(status_code=400, detail="old_key 必填且非空")
+    if not isinstance(key, str) or not key.strip():
+        raise HTTPException(status_code=400, detail="key 必填且非空")
+    skills = body.get("skills")
+    red_lines = body.get("red_lines", [])
+    if not isinstance(skills, list) or not skills or not all(isinstance(s, str) and s.strip() for s in skills):
+        raise HTTPException(status_code=400, detail="skills 应为非空字符串列表")
+    if not isinstance(red_lines, list) or not all(isinstance(r, str) for r in red_lines):
+        raise HTTPException(status_code=400, detail="red_lines 应为字符串列表")
+
+    path = _datasets_dir() / "jd_map.yml"
+    try:
+        update_jd(path, old_key.strip(), key.strip(), {
             "position": body.get("position", ""),
             "skills": skills,
             "red_lines": red_lines,

@@ -84,6 +84,14 @@ export function saveJd(payload) {
   return postJson('/jd/save', payload)
 }
 
+export function listJds() {
+  return request('/jd/list')
+}
+
+export function updateJd(payload) {
+  return postJson('/jd/update', payload)
+}
+
 export function setLabel(recordKey, label) {
   return postJson('/label', { record_key: recordKey, label })
 }

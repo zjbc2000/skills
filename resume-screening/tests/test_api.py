@@ -322,3 +322,53 @@ def test_history_api_flow(client, tmp_path):
 
     assert client.get("/history/99999", headers=_auth()).status_code == 404
     assert client.get("/history").status_code == 401
+
+
+def test_jd_list_returns_full_structures(client, tmp_path):
+    r = client.post(
+        "/jd/save",
+        headers=_auth(),
+        json={"key": "北京AE", "position": "高级AE", "skills": ["熟悉RAG", "熟悉LangGraph"], "red_lines": ["失信记录"]},
+    )
+    assert r.status_code == 200
+    jds = client.get("/jd/list", headers=_auth()).json()["jds"]
+    by_key = {j["key"]: j for j in jds}
+    assert by_key["北京AE"]["position"] == "高级AE"
+    assert by_key["北京AE"]["skills"] == ["熟悉RAG", "熟悉LangGraph"]
+    assert by_key["北京AE"]["red_lines"] == ["失信记录"]
+
+
+def test_jd_update_edits_and_migrates_key(client, tmp_path):
+    client.post("/jd/save", headers=_auth(),
+                json={"key": "北京AE", "position": "P", "skills": ["x"], "red_lines": []})
+
+    # 直接改字段
+    r = client.post("/jd/update", headers=_auth(),
+                    json={"old_key": "北京AE", "key": "北京AE", "position": "高级AE",
+                          "skills": ["x", "y"], "red_lines": []})
+    assert r.status_code == 200
+    jds = client.get("/jd/list", headers=_auth()).json()["jds"]
+    ae = next(j for j in jds if j["key"] == "北京AE")
+    assert ae["position"] == "高级AE" and ae["skills"] == ["x", "y"]
+
+    # 改 key（迁移）
+    r = client.post("/jd/update", headers=_auth(),
+                    json={"old_key": "北京AE", "key": "上海AE", "position": "P",
+                          "skills": ["z"], "red_lines": []})
+    assert r.status_code == 200
+    keys = client.get("/roles", headers=_auth()).json()["roles"]
+    assert "上海AE" in keys and "北京AE" not in keys
+
+    # 目标 key 被占 -> 409
+    client.post("/jd/save", headers=_auth(),
+                json={"key": "广州AE", "position": "P", "skills": ["z"], "red_lines": []})
+    dup = client.post("/jd/update", headers=_auth(),
+                      json={"old_key": "上海AE", "key": "广州AE", "position": "P",
+                            "skills": ["z"], "red_lines": []})
+    assert dup.status_code == 409
+
+    # 不存在的 old_key -> 409
+    miss = client.post("/jd/update", headers=_auth(),
+                       json={"old_key": "不存在", "key": "K", "position": "P",
+                             "skills": ["z"], "red_lines": []})
+    assert miss.status_code == 409
