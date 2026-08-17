@@ -46,11 +46,31 @@ def parse_message(message: dict) -> ParsedMessage:
     )
 
 
-def make_handler(channel: Channel, screener: Callable, whitelist: Set[str], runner=None) -> Callable:
-    """生成单条消息处理器：白名单 → 文件 → 异步筛选 → 纯文本回复。
+def extract_jd_key(text: str, jd_map: dict) -> Optional[str]:
+    """从消息文本里按格式提取 jd_map 的岗位 key（确定性匹配，非模型提取）。"""
+    for key in jd_map:
+        if key and key in (text or ""):
+            return key
+    return None
 
+
+def make_handler(
+    channel: Channel,
+    screener: Callable,
+    whitelist: Set[str],
+    jd_map: Optional[dict] = None,
+    default_jd: str = "",
+    runner=None,
+) -> Callable:
+    """生成单条消息处理器。
+
+    交互：@bot 发文本设岗位（格式匹配 jd_map key）→ 发简历 → 异步筛选 → 纯文本回复。
+    chat 内的 pending 岗位用完即清；未设置则用 default_jd；都没有则提示。
     runner 用于测试注入同步执行；默认后台线程（长连接需 3 秒内回执）。
     """
+    jd_map = jd_map or {}
+    pending: dict = {}
+
     def default_runner(fn):
         threading.Thread(target=fn, daemon=True).start()
 
@@ -59,13 +79,26 @@ def make_handler(channel: Channel, screener: Callable, whitelist: Set[str], runn
     def handle(parsed: ParsedMessage) -> None:
         if parsed.chat_id not in whitelist:
             return
+        if parsed.msg_type == "text":
+            key = extract_jd_key(parsed.text or "", jd_map)
+            if key:
+                pending[parsed.chat_id] = key
+                channel.notify(parsed.chat_id, f"岗位已设为：{key}，请发送简历")
+            else:
+                channel.notify(parsed.chat_id, "请发送 jd_map 中的岗位名（如 @我 输入岗位 key）")
+            return
         if parsed.msg_type != "file" or not parsed.file_key:
-            channel.notify(parsed.chat_id, "请发送 PDF 简历文件（@我并附上文件）")
+            channel.notify(parsed.chat_id, "请发送 PDF 简历文件（可先 @我 输入岗位）")
+            return
+
+        jd_ref = pending.pop(parsed.chat_id, default_jd)
+        if not jd_ref:
+            channel.notify(parsed.chat_id, "未指定岗位：请先 @我 输入岗位名")
             return
 
         def work():
             try:
-                summary = screener(parsed.file_key, parsed.message_id, parsed.file_name)
+                summary = screener(parsed.file_key, parsed.message_id, parsed.file_name, jd_ref)
             except Exception as e:  # noqa: BLE001 —— 出错必须回执，不静默
                 channel.notify(parsed.chat_id, f"处理失败：{e}")
                 return
@@ -101,11 +134,14 @@ class FeishuChannel(Channel):
             raise ChannelError(f"发送失败: {resp.code} {resp.msg}")
 
 
-def make_lark_screener(client, screen_fn: Callable[[Path], dict]) -> Callable:
-    """下载消息文件 → 跑管线 → 纯文本摘要（zip 走安全解压逐份筛）。"""
+def make_lark_screener(client, screen_fn: Callable[[Path, str], dict]) -> Callable:
+    """下载消息文件 → 跑管线 → 纯文本摘要（zip 走安全解压逐份筛）。
+
+    screen_fn(path, jd_ref) -> dict；screener(file_key, message_id, file_name, jd_ref) -> str。
+    """
     from lark_oapi.api.im.v1 import GetMessageResourceRequest
 
-    def screener(file_key: str, message_id: str, file_name: str = None) -> str:
+    def screener(file_key: str, message_id: str, file_name: str = None, jd_ref: str = "") -> str:
         req = (
             GetMessageResourceRequest.builder()
             .message_id(message_id)
@@ -126,22 +162,29 @@ def make_lark_screener(client, screen_fn: Callable[[Path], dict]) -> Callable:
             if suffix == ".zip":
                 from ..archive import screen_archive
 
-                return screen_archive(tmp_path, screen_fn)
-            return build_summary(screen_fn(tmp_path))
+                return screen_archive(tmp_path, lambda p: screen_fn(p, jd_ref))
+            return build_summary(screen_fn(tmp_path, jd_ref))
         finally:
             Path(tmp).unlink(missing_ok=True)
 
     return screener
 
 
-def run_bot(app_id: str, app_secret: str, whitelist: Set[str], screen_fn: Callable[[Path], dict]) -> None:
+def run_bot(
+    app_id: str,
+    app_secret: str,
+    whitelist: Set[str],
+    screen_fn: Callable[[Path, str], dict],
+    jd_map: Optional[dict] = None,
+    default_jd: str = "",
+) -> None:
     """启动长连接 bot（阻塞）。需在飞书开放平台将事件订阅切换为「使用长连接接收事件」。"""
     import lark_oapi
 
     client = lark_oapi.Client.builder().app_id(app_id).app_secret(app_secret).build()
     channel = FeishuChannel(client)
     screener = make_lark_screener(client, screen_fn)
-    handler = make_handler(channel, screener, whitelist)
+    handler = make_handler(channel, screener, whitelist, jd_map=jd_map or {}, default_jd=default_jd)
 
     def on_message(data):
         msg = data.event.message

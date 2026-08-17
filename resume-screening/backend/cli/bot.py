@@ -12,6 +12,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from ..config import load_config
+from ..persistence.jd_map import load_jd_map
 from ..screening.pipeline import screen_file
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -29,14 +30,18 @@ def main(argv=None) -> int:
     default_jd = os.environ.get("RESUME_DEFAULT_JD", "")
     datasets = Path(os.environ.get("RESUME_DATASETS", str(DEFAULT_DATASETS)))
     cfg = load_config()
+    try:
+        jd_map = load_jd_map(datasets / "jd_map.yml")
+    except FileNotFoundError:
+        jd_map = {}
 
-    def screen_fn(path: Path) -> dict:
-        return screen_file(path, default_jd, "general_specific", cfg, datasets, llm="real")
+    def screen_fn(path: Path, jd_ref: str) -> dict:
+        return screen_file(path, jd_ref, "general_specific", cfg, datasets, llm="real")
 
     from ..channels.feishu import run_bot
 
-    print(f"bot 启动：白名单群 {len(whitelist)} 个，默认岗位 '{default_jd}'")
-    run_bot(app_id, app_secret, whitelist, screen_fn)
+    print(f"bot 启动：白名单群 {len(whitelist)} 个，默认岗位 '{default_jd}'，jd_map 岗位 {list(jd_map)}")
+    run_bot(app_id, app_secret, whitelist, screen_fn, jd_map=jd_map, default_jd=default_jd)
     return 0
 
 
