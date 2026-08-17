@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import Dropdown from '../components/Dropdown.jsx'
-import { clearUsage, getDashboard, getModels, setDefaultModel } from '../api.js'
+import { clearUsage, getDashboard, getModels, getProviders, saveProvider, setDefaultModel } from '../api.js'
 
 export default function DashboardView() {
   const [data, setData] = useState(null)
   const [models, setModels] = useState(null)
   const [defaultSel, setDefaultSel] = useState(null) // "provider/model"
+  const [providers, setProviders] = useState(null)
+  const [pForm, setPForm] = useState({ provider: '', base_url: '', api_key: '', model: '' })
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -13,9 +15,10 @@ export default function DashboardView() {
   async function refresh() {
     setError('')
     try {
-      const [d, m] = await Promise.all([getDashboard(), getModels()])
+      const [d, m, p] = await Promise.all([getDashboard(), getModels(), getProviders()])
       setData(d)
       setModels(m)
+      setProviders(p.providers)
       setDefaultSel(`${m.default.provider}/${m.default.model}`)
     } catch (err) {
       setError(err.message)
@@ -50,6 +53,23 @@ export default function DashboardView() {
       await refresh()
     } catch (err) {
       setError(err.message)
+    }
+  }
+
+  async function onSaveProvider(e) {
+    e.preventDefault()
+    setError('')
+    setNotice('')
+    setBusy(true)
+    try {
+      await saveProvider(pForm)
+      setNotice(`端点已配置：${pForm.provider}（key 写入 .env 的 ${pForm.provider.toUpperCase().replace(/-/g, '_')}_API_KEY）`)
+      setPForm({ provider: '', base_url: '', api_key: '', model: '' })
+      await refresh()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -94,6 +114,59 @@ export default function DashboardView() {
           </button>
         </form>
         <p className="muted">写 config/default_model.yml（运行时覆盖，models.yml 不变）</p>
+      </section>
+
+      <section className="card">
+        <div className="row-between">
+          <h2>API 端点</h2>
+        </div>
+        <p className="muted">仅支持 OpenAI 兼容协议：填 provider 名 / base_url / api_key / 模型名，保存后即可在默认模型下拉选用。</p>
+        <form onSubmit={onSaveProvider} className="provider-form">
+          <input
+            className="pf"
+            placeholder="provider 名（如 qwen）"
+            value={pForm.provider}
+            onChange={(e) => setPForm({ ...pForm, provider: e.target.value })}
+          />
+          <input
+            className="pf pf-wide"
+            placeholder="base_url（如 https://dashscope.aliyuncs.com/compatible-mode/v1）"
+            value={pForm.base_url}
+            onChange={(e) => setPForm({ ...pForm, base_url: e.target.value })}
+          />
+          <input
+            className="pf pf-wide"
+            placeholder="api_key"
+            type="password"
+            value={pForm.api_key}
+            onChange={(e) => setPForm({ ...pForm, api_key: e.target.value })}
+          />
+          <input
+            className="pf"
+            placeholder="模型名（如 qwen-max）"
+            value={pForm.model}
+            onChange={(e) => setPForm({ ...pForm, model: e.target.value })}
+          />
+          <button className="primary" disabled={busy}>
+            {busy ? '保存中…' : '添加端点'}
+          </button>
+        </form>
+        {providers && (
+          <table className="table provider-table">
+            <thead>
+              <tr><th>provider</th><th>base_url</th><th>模型</th></tr>
+            </thead>
+            <tbody>
+              {Object.entries(providers).map(([name, p]) => (
+                <tr key={name}>
+                  <td>{name}</td>
+                  <td className="cell-name" title={p.base_url}>{p.base_url}</td>
+                  <td>{p.models.join(', ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
 
       <section className="card">

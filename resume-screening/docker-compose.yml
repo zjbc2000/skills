@@ -1,0 +1,24 @@
+# AE 工作台 docker 部署
+# 使用：docker compose up -d --build
+# 前端请先构建：cd web && npm run build（dist 挂载进 web 容器）
+services:
+  api:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./datasets:/app/datasets      # 简历数据 / history.db / manifest 持久化
+      - ./config:/app/config          # thresholds / models 可写（阈值、默认模型）
+      - ./var:/app/var                # 任务日志、pid
+    restart: unless-stopped
+
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./web/dist:/usr/share/nginx/html:ro
+    depends_on:
+      - api
+    restart: unless-stopped

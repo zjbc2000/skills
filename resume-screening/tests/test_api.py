@@ -429,3 +429,44 @@ def test_config_thresholds_endpoint(client):
     body = client.get("/config/thresholds", headers=_auth()).json()
     assert set(body["thresholds"]) == {"general", "specific", "total"}
     assert isinstance(body["thresholds"]["general"], int)
+
+
+def test_config_providers_save_and_list(client, tmp_path, monkeypatch):
+    """POST /config/providers 写 local yml + .env key，GET 可见，fallback 生效。"""
+    # 隔离 .env 写入路径
+    import backend.api.main as api_main
+
+    monkeypatch.setattr(api_main, "REPO_ROOT", tmp_path)
+
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "models.yml").write_text(
+        "providers:\n  p:\n    base_url: http://x\n    api_key_env: K\n    models: [m]\n"
+        "default:\n  provider: p\n  model: m\n", encoding="utf-8")
+    (cfg_dir / "tools.yml").write_text("doc_loader:\n  primary: local_pymupdf\n", encoding="utf-8")
+    (cfg_dir / "thresholds.yml").write_text("general: 40\nspecific: 20\ntotal: 45\n", encoding="utf-8")
+    monkeypatch.setenv("RESUME_CONFIG", str(cfg_dir))
+
+    r = client.post("/config/providers", headers=_auth(),
+                    json={"provider": "qwen", "base_url": "https://dashscope/v1",
+                          "api_key": "sk-test", "model": "qwen-max"})
+    assert r.status_code == 200
+    assert r.json()["api_key_env"] == "QWEN_API_KEY"
+
+    # local yml 落盘
+    local = yaml.safe_load((cfg_dir / "providers.local.yml").read_text(encoding="utf-8"))
+    assert local["providers"]["qwen"]["base_url"] == "https://dashscope/v1"
+
+    # key 写入隔离 .env
+    env_text = (tmp_path / ".env").read_text(encoding="utf-8")
+    assert "QWEN_API_KEY=sk-test" in env_text
+
+    # GET 可见（不含 key）
+    body = client.get("/config/providers", headers=_auth()).json()
+    assert body["providers"]["qwen"]["base_url"] == "https://dashscope/v1"
+    assert body["providers"]["qwen"]["models"] == ["qwen-max"]
+    assert "api_key" not in body["providers"]["qwen"]
+
+    # 校验
+    assert client.post("/config/providers", headers=_auth(),
+                       json={"provider": "", "base_url": "x", "api_key": "k", "model": "m"}).status_code == 400

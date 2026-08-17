@@ -22,3 +22,15 @@ outputs/
 
 # macOS
 .DS_Store
+
+# Node
+node_modules/
+web/dist/
+
+# 运行时生成的配置覆盖（模型面板）
+config/providers.local.yml
+config/default_model.yml
+
+# 运行产物
+output.json
+*.log

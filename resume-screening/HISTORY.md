@@ -4,6 +4,15 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.30 — 2026-08-18
+
+### Added
+- 模型面板「API 端点」卡：配置 OpenAI 兼容 provider（名 / base_url / api_key / 模型名），key 写入 `.env` 的 `<PROVIDER>_API_KEY`、端点写 `config/providers.local.yml`（运行时合并，不污染 models.yml）；`GET/POST /config/providers`
+- Docker 部署：`Dockerfile`（python:3.11-slim 跑 API）+ `docker-compose.yml`（api:8000 + web:nginx 服务 dist:8080，datasets/config/var 挂卷持久化）+ `.dockerignore`；部署文档 `docs/DEPLOYMENT.md`，README 加部署指引
+
+### Changed
+- `.gitignore` 补充（node_modules / web/dist / config 运行时覆盖文件 / output.json / *.log）；新增脱敏 `.env.example`
+
 ## V0.29 — 2026-08-18
 
 ### Changed

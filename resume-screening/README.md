@@ -21,6 +21,8 @@
 - **一键启动/停止**：`./scripts/start.sh start|all|stop|status` —— 后端 API（`backend.cli.api`，端口读 `.env` 的 `API_HOST/API_PORT`，默认 8000）+ 前端（vite dev，端口读 `WEB_PORT` 默认 5173，HMR 热重载）；`all` 额外启动飞书 bot；日志 `var/log/{api,web,bot}.log`，pid `var/run/`
 - 单独启动：API `python3 -m backend.cli.api`；前端 `cd web && npm run dev`
 
+> 📦 **部署**：本地环境与 Docker 部署见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)；模型 API 均为 OpenAI 兼容协议，可在「模型面板 → API 端点」配置新 provider。
+
 > ⚠️ **环境提示**：请用 `python3 -m uvicorn`（系统 python3，依赖齐全）而非裸 `uvicorn`。裸命令可能解析到 conda `bidding_env`（缺本项目依赖）而报 `ModuleNotFoundError`。若已在 conda 环境，先 `conda deactivate`。推荐长期方案：项目独立 venv（`.venv/bin/python -m uvicorn ...`）。
 
 ## 功能

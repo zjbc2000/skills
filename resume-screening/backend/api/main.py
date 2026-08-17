@@ -71,6 +71,69 @@ def config_thresholds() -> dict:
     return {"thresholds": load_config(_config_dir()).thresholds}
 
 
+@app.get("/config/providers", dependencies=[Depends(_require_api_key)])
+def config_providers() -> dict:
+    """当前 provider 端点（含本地覆盖），不含密钥。"""
+    cfg = load_config(_config_dir())
+    return {
+        "providers": {
+            name: {"base_url": p.get("base_url", ""), "models": list(p.get("models", []))}
+            for name, p in cfg.providers.items()
+        }
+    }
+
+
+@app.post("/config/providers", dependencies=[Depends(_require_api_key)])
+def save_config_providers(body: dict) -> dict:
+    """配置一个 OpenAI 兼容 API 端点（provider 名 + base_url + api_key + 模型名）。
+
+    写 `config/providers.local.yml`（运行时覆盖，不污染 models.yml）；key 写入项目根 `.env`。
+    """
+    provider = (body.get("provider") or "").strip()
+    base_url = (body.get("base_url") or "").strip()
+    api_key = (body.get("api_key") or "").strip()
+    model = (body.get("model") or "").strip()
+    for name, v in (("provider", provider), ("base_url", base_url),
+                    ("api_key", api_key), ("model", model)):
+        if not v:
+            raise HTTPException(status_code=400, detail=f"{name} 必填且非空")
+
+    env_key = provider.upper().replace("-", "_") + "_API_KEY"
+
+    # 1) key 写入项目根 .env（已有则替换该行）
+    env_path = REPO_ROOT / ".env"
+    if env_path.exists():
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+        kept, replaced = [], False
+        for ln in lines:
+            if ln.startswith(env_key + "="):
+                kept.append(f"{env_key}={api_key}")
+                replaced = True
+            else:
+                kept.append(ln)
+        if not replaced:
+            kept.append(f"{env_key}={api_key}")
+        env_path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    else:
+        env_path.write_text(f"{env_key}={api_key}\n", encoding="utf-8")
+
+    # 2) provider 写入 providers.local.yml
+    local_path = _config_dir() / "providers.local.yml"
+    local = {}
+    if local_path.exists():
+        try:
+            local = yaml.safe_load(local_path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            local = {}
+    lp = local.setdefault("providers", {})
+    lp[provider] = {"base_url": base_url, "api_key_env": env_key, "models": [model]}
+    local_path.write_text(
+        yaml.safe_dump(local, allow_unicode=True, sort_keys=False), encoding="utf-8")
+
+    return {"provider": provider, "base_url": base_url, "model": model,
+            "api_key_env": env_key}
+
+
 @app.get("/roles", dependencies=[Depends(_require_api_key)])
 def roles() -> dict:
     try:

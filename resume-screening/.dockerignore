@@ -1,0 +1,22 @@
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.coverage
+htmlcov
+
+# 本地数据与凭据不入镜像
+.env
+datasets/*
+!datasets/.gitkeep
+var/
+outputs/
+
+# 前端/测试/文档不需要进 api 镜像
+web/
+tests/
+docs/
+scripts/
+*.md
+.DS_Store

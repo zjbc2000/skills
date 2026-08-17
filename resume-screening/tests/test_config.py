@@ -57,3 +57,22 @@ def test_threshold_env_override(monkeypatch, tmp_path):
     monkeypatch.setenv("THRESH_GENERAL", "abc")
     with pytest.raises(ConfigError):
         load_config(cfg_dir)
+
+
+def test_local_providers_merged(tmp_path):
+    """providers.local.yml 合并进 providers（OpenAI 兼容端点，不污染 models.yml）。"""
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "models.yml").write_text(
+        "providers:\n  p:\n    base_url: http://x\n    api_key_env: K\n    models: [m]\n"
+        "default:\n  provider: p\n  model: m\n", encoding="utf-8")
+    (cfg_dir / "tools.yml").write_text("doc_loader:\n  primary: local_pymupdf\n", encoding="utf-8")
+    (cfg_dir / "thresholds.yml").write_text("general: 40\nspecific: 20\ntotal: 45\n", encoding="utf-8")
+    (cfg_dir / "providers.local.yml").write_text(
+        "providers:\n  qwen:\n    base_url: https://dashscope/v1\n"
+        "    api_key_env: QWEN_API_KEY\n    models: [qwen-max]\n", encoding="utf-8")
+
+    cfg = load_config(cfg_dir)
+    assert cfg.providers["qwen"]["base_url"] == "https://dashscope/v1"
+    assert cfg.providers["qwen"]["models"] == ["qwen-max"]
+    assert ("qwen", "qwen-max") in cfg.fallback_chain

@@ -62,6 +62,18 @@ def load_config(config_dir: Union[Path, str, None] = None) -> AppConfig:
     providers = models.get("providers")
     if not isinstance(providers, dict) or not providers:
         raise ConfigError("models.yml: providers 缺失或为空")
+    # 运行时本地 provider 覆盖（模型面板配置的 OpenAI 兼容端点，不污染 models.yml）
+    local_cfg = base / "providers.local.yml"
+    if local_cfg.exists():
+        try:
+            local = yaml.safe_load(local_cfg.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            local = {}
+        lp = local.get("providers")
+        if isinstance(lp, dict):
+            for name, p in lp.items():
+                if isinstance(p, dict):
+                    providers[name] = {**providers.get(name, {}), **p}
     default = models.get("default")
     # 运行时默认模型覆盖（dashboard 切换按钮写 default_model.yml，不污染 models.yml）
     override = base / "default_model.yml"

@@ -31,6 +31,14 @@ export function getThresholds() {
   return request('/config/thresholds')
 }
 
+export function getProviders() {
+  return request('/config/providers')
+}
+
+export function saveProvider(payload) {
+  return postJson('/config/providers', payload)
+}
+
 export function getEval() {
   return request('/eval')
 }
