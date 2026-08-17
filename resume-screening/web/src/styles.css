@@ -72,6 +72,9 @@ body {
 .sidebar {
   width: 224px;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   padding: var(--space-6) var(--space-4);
@@ -1109,6 +1112,8 @@ button.link:hover {
   }
   .sidebar {
     width: 100%;
+    position: static;
+    height: auto;
     flex-direction: row;
     align-items: center;
     border-right: none;
