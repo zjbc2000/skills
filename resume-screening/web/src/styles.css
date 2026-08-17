@@ -177,7 +177,9 @@ h2 {
 }
 
 select,
+textarea,
 input[type='file'],
+input[type='text'],
 button {
   background: var(--surface-2);
   color: var(--fg);
@@ -189,7 +191,8 @@ button {
 }
 
 select:focus-visible,
-input[type='file']:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
@@ -387,4 +390,143 @@ pre {
   * {
     transition: none !important;
   }
+}
+
+/* --- v0.13: 批量结果 / JD 管理 / 评测工作台 --- */
+.batch {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.batch-row {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.batch-row.ok {
+  border-left: 3px solid var(--ok, #2e9e5b);
+}
+
+.batch-row.bad {
+  border-left: 3px solid var(--danger, #d24444);
+}
+
+.batch-name {
+  font-size: 13px;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.tag-pass {
+  background: rgba(46, 158, 91, 0.14);
+  color: var(--ok, #2e9e5b);
+}
+
+.tag-fail {
+  background: rgba(210, 68, 68, 0.14);
+  color: var(--danger, #d24444);
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent, #3b6ef6);
+  font-size: 12px;
+  align-self: flex-start;
+}
+
+.detail-pre {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 12px;
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.field > textarea,
+.field > input {
+  background: var(--surface-2);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.notice {
+  color: var(--ok, #2e9e5b);
+  font-size: 13px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table tr.hl td {
+  background: rgba(59, 110, 246, 0.1);
+  font-weight: 600;
+}
+
+.cell-name {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cell-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.cell-actions .mini {
+  font-size: 12px;
+  padding: 3px 10px;
+}
+
+button.danger {
+  background: var(--danger, #d24444);
+  border-color: var(--danger, #d24444);
+  color: #fff;
+  font-weight: 600;
+}
+
+.ok-text {
+  color: var(--ok, #2e9e5b);
+}
+
+.bad-text {
+  color: var(--danger, #d24444);
 }

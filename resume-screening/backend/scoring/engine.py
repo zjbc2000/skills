@@ -1,4 +1,4 @@
-"""判定引擎（SPEC §3）：三模式计分、双闸门 AND、红线一票否决。"""
+"""判定引擎（SPEC §3）：两模式计分、红线一票否决。"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -6,8 +6,7 @@ from typing import Dict, List
 
 MODE_GENERAL = "general"
 MODE_SPECIFIC = "specific"
-MODE_GENERAL_SPECIFIC = "general_specific"
-MODES = (MODE_GENERAL, MODE_SPECIFIC, MODE_GENERAL_SPECIFIC)
+MODES = (MODE_GENERAL, MODE_SPECIFIC)
 
 
 @dataclass(frozen=True)
@@ -71,11 +70,9 @@ def assess(data: dict, mode: str, thresholds: dict) -> Verdict:
     passed = False
     if not hits:
         if mode == MODE_GENERAL:
-            passed = g >= thresholds["general"]
-        elif mode == MODE_SPECIFIC:
-            passed = s >= thresholds["specific"]
-        else:
             passed = g >= thresholds["general"] and t >= thresholds["total"]
+        else:
+            passed = s >= thresholds["specific"]
 
     return Verdict(
         passed=passed,

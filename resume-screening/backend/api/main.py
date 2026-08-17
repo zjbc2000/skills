@@ -1,31 +1,39 @@
 """FastAPI 后端（SPEC §9）：AE 工作台与 skill 的编排入口。
 
-端点：/health /roles /screen /eval；除 /health 外均需 X-API-Key。
+端点：/health /roles /screen /screen/batch /jd/* /eval /label /eval/apply-threshold；
+除 /health 外均需 X-API-Key。
 """
 from __future__ import annotations
 
 import os
 import tempfile
+import zipfile
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
+import yaml
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..config import load_config
 from ..doc_loader.base import LoaderError
-from ..eval.run_eval import build_eval_data
-from ..persistence.jd_map import load_jd_map
+from ..eval.run_eval import build_eval_data, build_records
+from ..persistence.jd_map import load_jd_map, save_jd
+from ..persistence.labels import load_labels, save_label
 from ..persistence.manifest import append_record, build_record
-from ..registry.llm_client import LLMError
+from ..registry.fake import fake_jd_call_fn
+from ..registry.llm_client import FailedQueue, LLMClient, LLMError
+from ..registry.openai_adapter import make_call_fn
 from ..scoring.engine import MODES
+from ..scoring.prompts import build_jd_extract_prompt
+from ..scoring.schema import validate_jd_output, validate_llm_output
 from ..screening.pipeline import ScreeningError, screen_file
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(REPO_ROOT / ".env")
 
-app = FastAPI(title="resume-screening API", version="0.7")
+app = FastAPI(title="resume-screening API", version="0.14")
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,6 +45,10 @@ app.add_middleware(
 
 def _datasets_dir() -> Path:
     return Path(os.environ.get("RESUME_DATASETS", str(REPO_ROOT / "datasets")))
+
+
+def _config_dir() -> Path:
+    return Path(os.environ.get("RESUME_CONFIG", str(REPO_ROOT / "config")))
 
 
 def _require_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:
@@ -59,11 +71,29 @@ def roles() -> dict:
     return {"roles": list(jd_map.keys())}
 
 
+def _screen_one(path, display_name: str, jd: str, mode: str, llm: str, cfg) -> dict:
+    """筛一份并落 manifest，返回前端结果 dict（失败抛异常，由调用方处理）。"""
+    result = screen_file(path, jd, mode, cfg, _datasets_dir(), llm=llm)
+    snapshot, doc = result["snapshot"], result["doc"]
+    append_record(
+        build_record(display_name, jd, result["verdict"], doc_loader=doc.loader, snapshot=snapshot),
+        _datasets_dir() / "manifest.jsonl",
+    )
+    return {
+        "name": display_name,
+        "verdict": snapshot["verdict"],
+        "totals": snapshot["totals"],
+        "thresholds": snapshot["thresholds"],
+        "doc_loader": doc.loader,
+        "snapshot": snapshot,
+    }
+
+
 @app.post("/screen", dependencies=[Depends(_require_api_key)])
 async def screen(
     file: UploadFile = File(...),
     jd: str = Form(...),
-    mode: str = Form("general_specific"),
+    mode: str = Form("general"),
     llm: str = Form("real"),
 ) -> dict:
     if mode not in MODES:
@@ -74,31 +104,162 @@ async def screen(
         with os.fdopen(fd, "wb") as out:
             out.write(await file.read())
         try:
-            result = screen_file(tmp, jd, mode, load_config(), _datasets_dir(), llm=llm)
+            return _screen_one(tmp, file.filename or tmp, jd, mode, llm, load_config(_config_dir()))
         except (ScreeningError, LoaderError, LLMError) as e:
             raise HTTPException(status_code=400, detail=str(e))
     finally:
         Path(tmp).unlink(missing_ok=True)
 
-    verdict, snapshot, doc = result["verdict"], result["snapshot"], result["doc"]
-    append_record(
-        build_record(file.filename or tmp, jd, verdict, doc_loader=doc.loader, snapshot=snapshot),
-        _datasets_dir() / "manifest.jsonl",
+
+def _docs_from_zip(zip_path: Path, dest: Path) -> List[Path]:
+    """解出 zip 内的 PDF/docx（按文件名平铺，忽略目录结构，防路径穿越）。"""
+    out = []
+    with zipfile.ZipFile(zip_path) as zf:
+        for info in zf.infolist():
+            if info.is_dir():
+                continue
+            name = Path(info.filename).name
+            if name.lower().endswith((".pdf", ".docx")):
+                target = dest / name
+                with zf.open(info) as src, open(target, "wb") as dst:
+                    dst.write(src.read())
+                out.append(target)
+    return out
+
+
+@app.post("/screen/batch", dependencies=[Depends(_require_api_key)])
+async def screen_batch(
+    files: List[UploadFile] = File(...),
+    jd: str = Form(...),
+    mode: str = Form("general"),
+    llm: str = Form("real"),
+) -> dict:
+    """批量筛选：多份 PDF/docx，或含 PDF/docx 的 zip 包。单份失败不中断批次。"""
+    if mode not in MODES:
+        raise HTTPException(status_code=400, detail=f"未知模式: {mode}")
+    cfg = load_config(_config_dir())
+    results = []
+    with tempfile.TemporaryDirectory() as td:
+        tmpdir = Path(td)
+        docs: List[tuple] = []  # (Path, display_name)
+        for i, f in enumerate(files):
+            raw = await f.read()
+            name = f.filename or f"file{i}"
+            staging = tmpdir / f"upload{i}{Path(name).suffix}"
+            staging.write_bytes(raw)
+            if name.lower().endswith(".zip"):
+                inner_dir = tmpdir / f"zip{i}"
+                inner_dir.mkdir()
+                try:
+                    inners = _docs_from_zip(staging, inner_dir)
+                except zipfile.BadZipFile:
+                    results.append({"name": name, "error": "非法 zip 包"})
+                    continue
+                if not inners:
+                    results.append({"name": name, "error": "zip 内无 PDF/docx 文件"})
+                    continue
+                docs.extend((p, p.name) for p in inners)
+            else:
+                docs.append((staging, name))
+
+        for path, display_name in docs:
+            try:
+                results.append(_screen_one(path, display_name, jd, mode, llm, cfg))
+            except (ScreeningError, LoaderError, LLMError, ValueError) as e:
+                results.append({"name": display_name, "error": str(e)})
+
+    ok = sum(1 for r in results if "verdict" in r)
+    return {"results": results, "n_ok": ok, "n_fail": len(results) - ok}
+
+
+@app.post("/jd/extract", dependencies=[Depends(_require_api_key)])
+def jd_extract(body: dict) -> dict:
+    """JD 原文 -> 结构化字段（position/skills/red_lines）。"""
+    jd_raw = body.get("jd_raw")
+    if not isinstance(jd_raw, str) or not jd_raw.strip():
+        raise HTTPException(status_code=400, detail="jd_raw 必填且非空")
+    llm = body.get("llm", "real")
+    cfg = load_config(_config_dir())
+    call = fake_jd_call_fn() if llm == "fake" else make_call_fn(cfg)
+    client = LLMClient(
+        chain=cfg.fallback_chain,
+        call_fn=call,
+        validator=validate_jd_output,
+        failed_queue=FailedQueue(path=_datasets_dir() / "failed.jsonl"),
     )
-    return {
-        "verdict": snapshot["verdict"],
-        "totals": snapshot["totals"],
-        "thresholds": snapshot["thresholds"],
-        "doc_loader": doc.loader,
-        "snapshot": snapshot,
-    }
+    try:
+        return client.complete(build_jd_extract_prompt(jd_raw))
+    except LLMError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/jd/save", dependencies=[Depends(_require_api_key)])
+def jd_save(body: dict) -> dict:
+    """保存岗位到 jd_map.yml（key 已存在返回 409）。"""
+    key = body.get("key")
+    if not isinstance(key, str) or not key.strip():
+        raise HTTPException(status_code=400, detail="key 必填且非空")
+    skills = body.get("skills")
+    red_lines = body.get("red_lines", [])
+    if not isinstance(skills, list) or not skills or not all(isinstance(s, str) and s.strip() for s in skills):
+        raise HTTPException(status_code=400, detail="skills 应为非空字符串列表")
+    if not isinstance(red_lines, list) or not all(isinstance(r, str) for r in red_lines):
+        raise HTTPException(status_code=400, detail="red_lines 应为字符串列表")
+
+    path = _datasets_dir() / "jd_map.yml"
+    if not path.exists():
+        path.write_text("roles: {}\n", encoding="utf-8")
+    try:
+        save_jd(path, key.strip(), {
+            "position": body.get("position", ""),
+            "skills": skills,
+            "red_lines": red_lines,
+        })
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return {"key": key.strip(), "roles": list(load_jd_map(path).keys())}
 
 
 @app.get("/eval", dependencies=[Depends(_require_api_key)])
 def eval_endpoint() -> dict:
     from ..persistence.manifest import load_records
 
-    from ..eval.run_eval import build_records
+    cfg = load_config(_config_dir())
+    records = build_records(
+        load_records(_datasets_dir() / "manifest.jsonl"),
+        labels=load_labels(_datasets_dir() / "labels.json"),
+        thresholds=cfg.thresholds,
+    )
+    return build_eval_data(records, cfg)
 
-    records = build_records(load_records(_datasets_dir() / "manifest.jsonl"))
-    return build_eval_data(records, load_config())
+
+@app.post("/label", dependencies=[Depends(_require_api_key)])
+def label(body: dict) -> dict:
+    """人工标注一条 manifest 记录（label: pass | fail | null=清除）。"""
+    record_key = body.get("record_key")
+    label_value = body.get("label", None)
+    if not isinstance(record_key, str) or not record_key:
+        raise HTTPException(status_code=400, detail="record_key 必填")
+    try:
+        labels = save_label(_datasets_dir() / "labels.json", record_key, label_value)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"n_labels": len(labels)}
+
+
+@app.post("/eval/apply-threshold", dependencies=[Depends(_require_api_key)])
+def apply_threshold(body: dict) -> dict:
+    """把扫描出的最优总分阈值回写 thresholds.yml（只动 total）。"""
+    threshold = body.get("threshold")
+    if not isinstance(threshold, int) or isinstance(threshold, bool) or threshold < 0:
+        raise HTTPException(status_code=400, detail="threshold 应为非负整数")
+    path = _config_dir() / "thresholds.yml"
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=400, detail=f"缺少配置文件: {path}") from e
+    if not isinstance(data.get("general"), int) or not isinstance(data.get("specific"), int):
+        raise HTTPException(status_code=400, detail="thresholds.yml 结构非法")
+    data["total"] = threshold
+    path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    return {"thresholds": data}

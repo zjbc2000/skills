@@ -28,6 +28,10 @@ def get_loader(name: str) -> Optional[Callable[[str], str]]:
         from . import pymupdf_local
 
         return pymupdf_local.extract_text
+    if name == "local_docx":
+        from . import docx_local
+
+        return docx_local.extract_text
     if name == "local_paddleocr":
         from . import paddleocr_local
 

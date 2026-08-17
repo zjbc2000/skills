@@ -13,6 +13,26 @@ from ..registry.llm_client import SchemaError
 MIN_BONUS, MAX_BONUS = 0, 3
 
 
+def validate_jd_output(raw: str) -> dict:
+    """解析并校验 JD 抽取响应：{position, skills[], red_lines[]}。"""
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise SchemaError(f"响应不是合法 JSON: {e}") from e
+    if not isinstance(data, dict):
+        raise SchemaError("响应应为 JSON 对象")
+    if not isinstance(data.get("position"), str) or not data["position"].strip():
+        raise SchemaError("position 必填且非空")
+    for key in ("skills", "red_lines"):
+        items = data.get(key)
+        if not isinstance(items, list):
+            raise SchemaError(f"{key}: 应为列表")
+        for i, item in enumerate(items):
+            if not isinstance(item, str) or not item.strip():
+                raise SchemaError(f"{key}[{i}]: 应为非空字符串")
+    return data
+
+
 def validate_llm_output(raw: str) -> dict:
     """解析并校验 LLM 原始响应，返回规范化 dict。"""
     try:

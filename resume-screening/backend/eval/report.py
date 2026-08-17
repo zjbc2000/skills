@@ -60,12 +60,13 @@ def _discrimination_table(disc: list) -> str:
 
 
 def _records_table(records: list) -> str:
-    head = "<tr><th>简历</th><th>实际</th><th>判定</th></tr>"
+    head = "<tr><th>简历</th><th>岗位</th><th>人工标注</th><th>判定</th></tr>"
     body = []
     for r in records:
-        cls = "pass" if r["predicted"] == r["actual"] else "fail"
+        label = r.get("label") or "-"
+        cls = "pass" if r["predicted"] == label else "fail"
         body.append(
-            f"<tr><td>{r['resume']}</td><td>{r['actual']}</td>"
+            f"<tr><td>{r['resume']}</td><td>{r.get('jd_ref') or '-'}</td><td>{label}</td>"
             f"<td class='{cls}'>{r['predicted']}</td></tr>"
         )
     return f"<table>{head}{''.join(body)}</table>"
@@ -76,28 +77,40 @@ def render_html(data: dict) -> str:
     qa = data["quotation_accuracy"]
     best = data.get("best") or {}
     best_threshold = best.get("threshold")
-    cards = (
-        _metric_card("准确率", _pct(m["accuracy"]))
-        + _metric_card("精确率", _pct(m["precision"]))
-        + _metric_card("召回率", _pct(m["recall"]))
-        + _metric_card("F1", _pct(m["f1"]))
-        + _metric_card("样本数", str(m["n"]))
-        + _metric_card("引用准确率", _pct(qa["ratio"]), "fail" if qa["ratio"] < 0.8 else "")
-    )
-    best_line = (
-        f"<p>最优总分阈值：<span class='pass'>{best_threshold}</span> "
-        f"（准确率 {_pct(best.get('accuracy', 0))}）</p>"
-        if best_threshold is not None else ""
-    )
+    if m:
+        cards = (
+            _metric_card("准确率", _pct(m["accuracy"]))
+            + _metric_card("精确率", _pct(m["precision"]))
+            + _metric_card("召回率", _pct(m["recall"]))
+            + _metric_card("F1", _pct(m["f1"]))
+            + _metric_card("样本数", str(m["n"]))
+            + _metric_card("引用准确率", _pct(qa["ratio"]), "fail" if qa["ratio"] < 0.8 else "")
+        )
+        metrics_html = "<h2>核心指标</h2><div class='grid'>" + cards + "</div>" \
+            + "<h2>混淆矩阵</h2>" + _confusion_table(data["confusion"]) \
+            + "<h2>阈值扫描（固定通用阈值）</h2>" + best_line(best) + _scan_table(data["threshold_scan"], best_threshold) \
+            + "<h2>单指标区分度</h2>" + _discrimination_table(data["discrimination"])
+    else:
+        metrics_html = (
+            f"<p class='muted'>暂无人工标注（未标注 {data.get('unlabeled', data.get('n', 0))} 条），"
+            "请在评测页标注后重跑。</p>"
+        )
     return (
         "<!doctype html><html lang='zh'><head><meta charset='utf-8'>"
         f"<title>筛简历评估报告</title>{_CSS}</head><body>"
         "<h1>筛简历评估报告</h1>"
-        "<h2>核心指标</h2><div class='grid'>" + cards + "</div>"
-        "<h2>混淆矩阵</h2>" + _confusion_table(data["confusion"])
-        + "<h2>阈值扫描（固定通用阈值）</h2>" + best_line + _scan_table(data["threshold_scan"], best_threshold)
-        + "<h2>单指标区分度</h2>" + _discrimination_table(data["discrimination"])
+        + metrics_html
         + "<h2>逐条记录</h2>" + _records_table(data["records"])
         + "<p class='muted'>本报告由 `python -m backend.eval.run_eval` 生成。</p>"
         "</body></html>"
+    )
+
+
+def best_line(best: dict) -> str:
+    best_threshold = best.get("threshold")
+    if best_threshold is None:
+        return ""
+    return (
+        f"<p>最优总分阈值：<span class='pass'>{best_threshold}</span> "
+        f"（准确率 {_pct(best.get('accuracy', 0))}）</p>"
     )

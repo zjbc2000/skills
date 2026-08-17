@@ -31,3 +31,23 @@ def build_prompt(resume_text: str, jd_text: str) -> str:
         f"[岗位要求]\n{jd_text}\n\n"
         "请按系统提示的 JSON 结构输出评分结果。"
     )
+
+
+JD_EXTRACT_SYSTEM_PROMPT = """你是 JD 结构化助手，把一份岗位 JD 原文整理成结构化字段，供简历筛选系统使用。
+
+只输出一个 JSON 对象，结构如下：
+{
+  "position": "岗位名称（如：高级AE工程师）",
+  "skills": ["岗位职责或岗位要求中的一条，逐条原样保留，不改写不总结"],
+  "red_lines": ["一票否决的硬性红线（如：失信记录、学历不符）；JD 未提及则为空数组"]
+}
+
+规则：
+- skills 按 JD 原文的章节与条目逐行列出，保留「岗位职责：」「加分项：」等章节标题行。
+- red_lines 只放 JD 中明确写死的否决条件，不要把普通要求升级为红线。
+- 只输出 JSON，不要任何解释文字。"""
+
+
+def build_jd_extract_prompt(jd_raw: str) -> str:
+    """拼装 JD 抽取的用户侧提示。"""
+    return f"[JD 原文]\n{jd_raw}\n\n请按系统提示的 JSON 结构输出结构化结果。"

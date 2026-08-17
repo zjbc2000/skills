@@ -4,6 +4,25 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.14 — 2026-08-17
+
+### Added
+- JD 管理页：粘贴 JD 原文 -> LLM 抽取 position/skills/red_lines（可编辑预览）-> 保存注册到 `datasets/jd_map.yml`，保存后岗位下拉框即时可选；`POST /jd/extract` `POST /jd/save`
+- 批量筛选：支持多选 PDF/docx 或上传 zip 包（后端解包逐份筛选，单份失败不中断），`POST /screen/batch`
+- docx 解析器 `local_docx`（python-docx，段落+表格），加入降级链
+- 评测工作台独立菜单页：manifest 记录人工打标（`POST /label`，存 `datasets/labels.json`，manifest 保持 append-only）；指标只算已标注子集；判定按当前阈值从 totals 重算（调阈值无需重筛）；阈值扫描 + 一键回写 `config/thresholds.yml`（`POST /eval/apply-threshold`，支持 `RESUME_CONFIG` 覆盖配置目录）
+
+### Changed
+- 前端拆分为三页（筛简历 / JD 管理 / 评测），视图组件移入 `web/src/views/`
+- 评测 HTML 报告适配人工标注语义（岗位列 + 标注列）
+
+## V0.13 — 2026-08-17
+
+### Changed
+- 移除「通用+特定（双闸门）」模式，仅保留 通用 / 特定 两模式
+- 通用模式判定改为 G≥30 且 T≥45；特定模式改为 S≥20（`config/thresholds.yml`）
+- 前端 / API / CLI / 飞书 bot 默认模式统一为 `general`
+
 ## V0.12 — 2026-08-17
 
 ### Changed

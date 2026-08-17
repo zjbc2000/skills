@@ -88,8 +88,9 @@ def test_metric_discrimination():
     assert disc["position_match"]["avg_fail"] == 0.0
 
 
-def test_run_eval_writes_json_and_html(tmp_path):
-    from backend.eval.run_eval import main as eval_main
+def test_run_eval_writes_json_and_html(tmp_path, monkeypatch):
+    from backend.eval.run_eval import main as eval_main, record_key
+    from backend.config import load_config
 
     manifest = tmp_path / "manifest.jsonl"
     recs = [
@@ -109,6 +110,20 @@ def test_run_eval_writes_json_and_html(tmp_path):
         with open(manifest, "a", encoding="utf-8") as f:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
+    # 人工真值：a=pass, b=fail；阈值用 tmp 配置（G>=8 且 T>=5 -> a 判对）
+    labels = {record_key(recs[0]): "pass", record_key(recs[1]): "fail"}
+    (tmp_path / "labels.json").write_text(json.dumps(labels), encoding="utf-8")
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "models.yml").write_text(
+        "providers:\n  p:\n    base_url: http://x\n    api_key_env: K\n    models: [m]\n"
+        "default:\n  provider: p\n  model: m\n", encoding="utf-8")
+    (cfg_dir / "tools.yml").write_text("doc_loader:\n  primary: local_pymupdf\n", encoding="utf-8")
+    (cfg_dir / "thresholds.yml").write_text(
+        "general: 8\nspecific: 20\ntotal: 5\n", encoding="utf-8")
+    monkeypatch.setenv("RESUME_CONFIG", str(cfg_dir))
+    assert load_config(cfg_dir).thresholds["total"] == 5
+
     out_html = tmp_path / "report.html"
     out_json = tmp_path / "report.json"
     rc = eval_main(["--datasets", str(tmp_path), "--html", str(out_html), "--json", str(out_json)])
@@ -117,5 +132,7 @@ def test_run_eval_writes_json_and_html(tmp_path):
     assert "混淆矩阵" in out_html.read_text(encoding="utf-8")
     data = json.loads(out_json.read_text(encoding="utf-8"))
     assert data["metrics"]["accuracy"] == 1.0
+    assert data["labeled"] == 2 and data["unlabeled"] == 0
     assert data["quotation_accuracy"] == {"exact": 3, "total": 4, "ratio": 0.75}
     assert len(data["records"]) == 2
+    assert all("record_key" in r and "label" in r for r in data["records"])

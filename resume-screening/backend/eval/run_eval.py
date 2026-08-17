@@ -5,12 +5,14 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from ..config import load_config
+from ..persistence.labels import load_labels
 from ..persistence.manifest import load_records
 from .metrics import (
     accuracy,
@@ -27,15 +29,42 @@ from .report import render_html
 DEFAULT_DATASETS = Path(__file__).resolve().parent.parent.parent / "datasets"
 
 
-def build_records(raw: List[dict]) -> List[dict]:
+def record_key(r: dict) -> str:
+    """manifest 记录指纹：resume + jd_ref + time 的 sha1。"""
+    raw = f"{r.get('resume')}|{r.get('jd_ref')}|{r.get('time')}"
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+
+def build_records(
+    raw: List[dict],
+    labels: Optional[dict] = None,
+    thresholds: Optional[dict] = None,
+) -> List[dict]:
+    """由 manifest 记录构建评测记录。
+
+    actual 来自人工标注（labels，缺省 None=未标注）；predicted 按当前阈值
+    从 totals 重算（G>=general 且 T>=total），调阈值后无需重新筛简历。
+    """
+    labels = labels or {}
     out = []
     for r in raw:
         snap = r.get("score_snapshot") or {}
+        totals = snap.get("totals") or {}
+        if thresholds is not None:
+            predicted = (
+                totals.get("G", 0) >= thresholds["general"]
+                and totals.get("T", 0) >= thresholds["total"]
+            )
+        else:
+            predicted = snap.get("verdict") == "pass"
+        label = labels.get(record_key(r))
         out.append({
+            "record_key": record_key(r),
             "resume": r.get("resume"),
             "jd_ref": r.get("jd_ref"),
-            "actual": r.get("decision") == "pass",
-            "predicted": snap.get("verdict") == "pass",
+            "label": label,
+            "actual": (label == "pass") if label else None,
+            "predicted": predicted,
             "snapshot": snap,
         })
     return out
@@ -48,33 +77,45 @@ def _max_total(records: List[dict]) -> int:
 
 
 def build_eval_data(records: List[dict], cfg, fixed_general=None, total_range=None) -> dict:
-    """由记录与配置计算完整评估数据（CLI 与 API 共用，DRY）。"""
-    if not records:
-        return {"n": 0, "records": [], "metrics": {}, "confusion": {},
-                "quotation_accuracy": {"ratio": 0.0}}
-    fixed_general = fixed_general if fixed_general is not None else int(cfg.thresholds["general"])
-    lo, hi = (0, _max_total(records)) if total_range is None else total_range
+    """由记录与配置计算完整评估数据（CLI 与 API 共用，DRY）。
 
-    c = confusion(records)
+    指标只基于已人工标注的子集；quoted 准确率基于全部记录。
+    """
+    labeled = [dict(r, actual=bool(r["actual"])) for r in records if r.get("actual") is not None]
+    unlabeled = len(records) - len(labeled)
+    row = lambda r: {  # noqa: E731
+        "record_key": r["record_key"],
+        "resume": r["resume"], "jd_ref": r["jd_ref"],
+        "label": r.get("label"),
+        "predicted": "pass" if r["predicted"] else "fail",
+    }
+    if not labeled:
+        return {
+            "n": len(records), "labeled": 0, "unlabeled": unlabeled,
+            "records": [row(r) for r in records],
+            "metrics": {}, "confusion": {}, "threshold_scan": [], "best": None,
+            "discrimination": [], "quotation_accuracy": {"ratio": 0.0},
+        }
+    fixed_general = fixed_general if fixed_general is not None else int(cfg.thresholds["general"])
+    lo, hi = (0, _max_total(labeled)) if total_range is None else total_range
+
+    c = confusion(labeled)
     q_exact, q_total, q_ratio = quotation_accuracy(records)
-    rows, best = threshold_scan(records, fixed_general=fixed_general, total_range=(lo, hi))
+    rows, best = threshold_scan(labeled, fixed_general=fixed_general, total_range=(lo, hi))
     return {
         "n": len(records),
+        "labeled": len(labeled),
+        "unlabeled": unlabeled,
         "metrics": {
             "accuracy": accuracy(c), "precision": precision(c),
-            "recall": recall(c), "f1": f1(c), "n": len(records),
+            "recall": recall(c), "f1": f1(c), "n": len(labeled),
         },
         "confusion": {"tp": c.tp, "fp": c.fp, "tn": c.tn, "fn": c.fn},
         "quotation_accuracy": {"exact": q_exact, "total": q_total, "ratio": q_ratio},
         "threshold_scan": rows,
         "best": best,
-        "discrimination": metric_discrimination(records),
-        "records": [
-            {"resume": r["resume"], "jd_ref": r["jd_ref"],
-             "actual": "pass" if r["actual"] else "fail",
-             "predicted": "pass" if r["predicted"] else "fail"}
-            for r in records
-        ],
+        "discrimination": metric_discrimination(labeled),
+        "records": [row(r) for r in records],
     }
 
 
@@ -94,12 +135,19 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     datasets = Path(args.datasets)
-    records = build_records(load_records(datasets / "manifest.jsonl"))
+    import os
+
+    cfg = load_config(os.environ.get("RESUME_CONFIG") or None)
+    records = build_records(
+        load_records(datasets / "manifest.jsonl"),
+        labels=load_labels(datasets / "labels.json"),
+        thresholds=cfg.thresholds,
+    )
     if not records:
         print(f"manifest 无记录: {datasets / 'manifest.jsonl'}", file=sys.stderr)
         return 1
 
-    data = build_eval_data(records, load_config(), fixed_general=args.general,
+    data = build_eval_data(records, cfg, fixed_general=args.general,
                            total_range=_parse_range(args.total_range))
 
 

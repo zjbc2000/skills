@@ -1,4 +1,5 @@
-# 判定阈值（SPEC §3.3）——初始值，用真实数据集 + 阈值扫描校准
-general: 8
-specific: 8
-total: 16
+# 判定阈值（SPEC §3.3）--初始值，用真实数据集 + 阈值扫描校准
+# 通用模式：G>=general 且 T>=total；特定模式：S>=specific
+general: 30
+specific: 20
+total: 45

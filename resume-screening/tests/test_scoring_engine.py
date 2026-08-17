@@ -1,4 +1,4 @@
-"""评分引擎与判定（T03）：三模式 / 双闸门 / 红线否决 / schema 校验。"""
+"""评分引擎与判定（T03）：两模式 / 通用双条件 / 红线否决 / schema 校验。"""
 from __future__ import annotations
 
 import json
@@ -8,7 +8,6 @@ import pytest
 
 from backend.scoring.engine import (
     MODE_GENERAL,
-    MODE_GENERAL_SPECIFIC,
     MODE_SPECIFIC,
     assess,
 )
@@ -102,7 +101,7 @@ def test_validate_rejects_skill_missing_hit():
 def test_general_score_sums():
     v = assess(VALID, MODE_GENERAL, THRESH)
     assert v.g == 3  # projects 2 + tech_stack 1
-    assert v.s == 3  # 引擎始终计算 G 与 S；general 模式仅用 G 判定
+    assert v.s == 3  # 引擎始终计算 G 与 S；general 模式用 G 与 T 判定
     assert v.passed
 
 
@@ -119,22 +118,22 @@ def test_specific_ignores_non_hit_skills():
     assert v.s == 1  # 仅 position_match；未命中技能不计入（SPEC §1 命中之和）
 
 
-def test_dual_gate_fails_when_total_short():
-    v = assess(VALID, MODE_GENERAL_SPECIFIC, {"general": 3, "specific": 3, "total": 99})
+def test_general_fails_when_total_short():
+    v = assess(VALID, MODE_GENERAL, {"general": 3, "specific": 3, "total": 99})
     assert v.g >= 3
     assert v.t < 99
     assert not v.passed
 
 
-def test_dual_gate_fails_when_general_short():
-    v = assess(VALID, MODE_GENERAL_SPECIFIC, {"general": 99, "specific": 3, "total": 6})
+def test_general_fails_when_g_short():
+    v = assess(VALID, MODE_GENERAL, {"general": 99, "specific": 3, "total": 6})
     assert v.t >= 6
     assert v.g < 99
     assert not v.passed
 
 
-def test_dual_gate_passes_when_both_clear():
-    v = assess(VALID, MODE_GENERAL_SPECIFIC, THRESH)
+def test_general_passes_when_both_clear():
+    v = assess(VALID, MODE_GENERAL, THRESH)
     assert v.g >= 3 and v.t >= 6
     assert v.passed
 
@@ -142,16 +141,16 @@ def test_dual_gate_passes_when_both_clear():
 def test_red_line_vetoes_all_modes():
     bad = deepcopy(VALID)
     bad["general"]["red_lines"] = [{"rule": "失信记录", "hit": True, "quotation": "有失信", "evidence": ""}]
-    for mode in (MODE_GENERAL, MODE_SPECIFIC, MODE_GENERAL_SPECIFIC):
+    for mode in (MODE_GENERAL, MODE_SPECIFIC):
         v = assess(bad, mode, THRESH)
         assert not v.passed
         assert v.red_lines_hit == ["失信记录"]
 
 
 def test_snapshot_contains_totals_thresholds_verdict():
-    v = assess(VALID, MODE_GENERAL_SPECIFIC, THRESH)
+    v = assess(VALID, MODE_GENERAL, THRESH)
     snap = v.snapshot
     assert snap["totals"] == {"G": 3, "S": 3, "T": 6}
     assert snap["thresholds"] == THRESH
     assert snap["verdict"] == "pass"
-    assert snap["mode"] == MODE_GENERAL_SPECIFIC
+    assert snap["mode"] == MODE_GENERAL

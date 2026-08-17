@@ -22,7 +22,7 @@ description: 筛简历 skill。加分制（通用分 G / 特定分 S / 总分 T�
 **过程**（本地）：
 
 ```bash
-python -m backend.cli.screen <简历.pdf> --jd <岗位key> [--mode general|specific|general_specific] [--llm fake|real]
+python -m backend.cli.screen <简历.pdf> --jd <岗位key> [--mode general|specific] [--llm fake|real]
 ```
 
 - `--llm fake`：本地无凭据跑通（开发/测试）

@@ -14,6 +14,16 @@ def load_jd_map(path: Union[Path, str]) -> dict:
     return roles if isinstance(roles, dict) else {}
 
 
+def save_jd(path: Union[Path, str], key: str, jd: dict) -> None:
+    """新增一个岗位到 jd_map.yml（key 已存在抛 ValueError）。"""
+    roles = load_jd_map(path)
+    if key in roles:
+        raise ValueError(f"岗位已存在: {key}")
+    roles[key] = jd
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.safe_dump({"roles": roles}, f, allow_unicode=True, sort_keys=False)
+
+
 def jd_text(jd: dict) -> str:
     """把一条 JD 渲染成给 LLM 的文本（岗位 + 技能要求 + 红线）。
 

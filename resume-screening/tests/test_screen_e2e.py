@@ -46,7 +46,7 @@ def test_screen_writes_manifest_with_fake_llm(tmp_path):
     (tmp_path / "jd_map.yml").write_text(JD_YML, encoding="utf-8")
 
     rc = main([
-        str(pdf), "--jd", "西安AE", "--mode", "general_specific",
+        str(pdf), "--jd", "西安AE", "--mode", "general",
         "--datasets", str(tmp_path), "--llm", "fake",
     ])
     assert rc == 0

@@ -15,6 +15,14 @@ async function request(path, options = {}) {
   return body
 }
 
+function postJson(path, payload) {
+  return request(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+}
+
 export function getRoles() {
   return request('/roles')
 }
@@ -29,6 +37,30 @@ export function screenResume(file, { jd, mode }) {
   fd.append('jd', jd)
   fd.append('mode', mode)
   return request('/screen', { method: 'POST', body: fd })
+}
+
+export function screenBatch(files, { jd, mode }) {
+  const fd = new FormData()
+  for (const f of files) fd.append('files', f)
+  fd.append('jd', jd)
+  fd.append('mode', mode)
+  return request('/screen/batch', { method: 'POST', body: fd })
+}
+
+export function extractJd(jdRaw) {
+  return postJson('/jd/extract', { jd_raw: jdRaw })
+}
+
+export function saveJd(payload) {
+  return postJson('/jd/save', payload)
+}
+
+export function setLabel(recordKey, label) {
+  return postJson('/label', { record_key: recordKey, label })
+}
+
+export function applyThreshold(threshold) {
+  return postJson('/eval/apply-threshold', { threshold })
 }
 
 export { API_BASE, API_KEY }

@@ -36,7 +36,7 @@ def main(argv=None) -> int:
         jd_map = {}
 
     def screen_fn(path: Path, jd_ref: str) -> dict:
-        return screen_file(path, jd_ref, "general_specific", cfg, datasets, llm="real")
+        return screen_file(path, jd_ref, "general", cfg, datasets, llm="real")
 
     from ..channels.feishu import run_bot
 

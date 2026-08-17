@@ -39,3 +39,21 @@ def _section(text: str, start: str, end: str) -> str:
     j = text.find(end, i + 1)
     segment = text[i + len(start):] if j == -1 else text[i + len(start):j]
     return segment
+
+
+def fake_jd_call_fn() -> Callable:
+    """JD 抽取假 LLM：按 [JD 原文] 段逐行拆 skills，返回固定结构。"""
+
+    def call(
+        provider: str, model: str, prompt: str, feedback: Optional[str] = None
+    ) -> str:
+        jd_raw = _section(prompt, "[JD 原文]", "请按系统提示")
+        skills = [ln.strip() for ln in jd_raw.splitlines() if ln.strip()]
+        payload = {
+            "position": "测试岗位",
+            "skills": skills,
+            "red_lines": [],
+        }
+        return json.dumps(payload, ensure_ascii=False)
+
+    return call

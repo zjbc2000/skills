@@ -27,7 +27,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="筛一份简历并写入 manifest")
     parser.add_argument("resume", nargs="?", help="简历文件（PDF）")
     parser.add_argument("--jd", help="jd_map 中的岗位 key")
-    parser.add_argument("--mode", choices=MODES, default="general_specific")
+    parser.add_argument("--mode", choices=MODES, default="general")
     parser.add_argument("--datasets", default=str(DEFAULT_DATASETS))
     parser.add_argument("--llm", choices=["real", "fake"], default="real")
     parser.add_argument("--list-failed", action="store_true", help="列出 failed 队列并退出")

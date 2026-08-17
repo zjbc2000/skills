@@ -1,20 +1,25 @@
-import { useEffect, useState } from 'react'
-import { getEval, getRoles, screenResume } from './api.js'
+import { useState } from 'react'
+import EvalView from './views/EvalView.jsx'
+import JdView from './views/JdView.jsx'
+import ScreenView from './views/ScreenView.jsx'
 
-const MODES = [
-  { value: 'general_specific', label: '通用+特定（双闸门）' },
-  { value: 'general', label: '通用' },
-  { value: 'specific', label: '特定' },
+const NAV = [
+  { key: 'screen', label: '筛简历', icon: <ClipboardIcon /> },
+  { key: 'jd', label: 'JD 管理', icon: <BriefcaseIcon /> },
+  { key: 'eval', label: '评测', icon: <ChartIcon /> },
 ]
-
-const NAV = [{ key: 'screen', label: '筛简历', icon: <ClipboardIcon /> }]
 
 export default function App() {
   const [view, setView] = useState('screen')
+  const [rolesVersion, setRolesVersion] = useState(0) // JD 保存后刷新筛简历页岗位
   return (
     <div className="shell">
       <Sidebar active={view} onSelect={setView} />
-      <main className="content">{view === 'screen' && <ScreenView />}</main>
+      <main className="content">
+        {view === 'screen' && <ScreenView key={rolesVersion} />}
+        {view === 'jd' && <JdView onSaved={() => setRolesVersion((v) => v + 1)} />}
+        {view === 'eval' && <EvalView />}
+      </main>
     </div>
   )
 }
@@ -49,172 +54,6 @@ function Sidebar({ active, onSelect }) {
   )
 }
 
-function ScreenView() {
-  const [roles, setRoles] = useState([])
-  const [jd, setJd] = useState('')
-  const [mode, setMode] = useState('general_specific')
-  const [file, setFile] = useState(null)
-  const [result, setResult] = useState(null)
-  const [evalData, setEvalData] = useState(null)
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    getRoles()
-      .then(({ roles }) => {
-        setRoles(roles)
-        setJd(roles[0] || '')
-      })
-      .catch((e) => setError(`加载岗位失败：${e.message}`))
-  }, [])
-
-  async function onScreen(e) {
-    e.preventDefault()
-    if (!file) {
-      setError('请选择简历文件')
-      return
-    }
-    setError('')
-    setBusy(true)
-    setResult(null)
-    try {
-      setResult(await screenResume(file, { jd, mode }))
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function onEval() {
-    setError('')
-    setBusy(true)
-    try {
-      setEvalData(await getEval())
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <>
-      <h1>筛简历</h1>
-
-      <section className="card">
-        <form onSubmit={onScreen}>
-          <div className="field-grid">
-            <label className="field">
-              <span>岗位</span>
-              <select value={jd} onChange={(e) => setJd(e.target.value)}>
-                {roles.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>模式</span>
-              <select value={mode} onChange={(e) => setMode(e.target.value)}>
-                {MODES.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>简历</span>
-              <input type="file" accept=".pdf" onChange={(e) => setFile(e.target.files[0])} />
-            </label>
-          </div>
-          <button className="primary" disabled={busy}>
-            {busy ? '筛选中…' : '开始筛选'}
-          </button>
-        </form>
-        {error && <p className="error" role="alert">{error}</p>}
-        {result && <ResultView result={result} />}
-      </section>
-
-      <section className="card">
-        <div className="row-between">
-          <h2>评估</h2>
-          <button onClick={onEval} disabled={busy}>
-            {busy ? '计算中…' : '跑评估'}
-          </button>
-        </div>
-        {evalData && <EvalView data={evalData} />}
-        {!evalData && !error && <p className="muted">跑评估查看 skill 的准确率 / 引用准确率 / 阈值建议</p>}
-      </section>
-    </>
-  )
-}
-
-function ResultView({ result }) {
-  const pass = result.verdict === 'pass'
-  return (
-    <div className="result">
-      <div className={`verdict ${pass ? 'pass' : 'fail'}`}>
-        <span className="dot" aria-hidden="true" />
-        {result.verdict.toUpperCase()}
-      </div>
-      <div className="scores">
-        <Score label="G" value={result.totals.G} />
-        <Score label="S" value={result.totals.S} />
-        <Score label="T" value={result.totals.T} />
-      </div>
-      <div className="muted">
-        阈值 G≥{result.thresholds.general} 且 T≥{result.thresholds.total} · 解析器 {result.doc_loader}
-      </div>
-      <details className="detail">
-        <summary>打分明细</summary>
-        <pre>{JSON.stringify(result.snapshot, null, 2)}</pre>
-      </details>
-    </div>
-  )
-}
-
-function Score({ label, value }) {
-  return (
-    <div className="score">
-      <span className="score-label">{label}</span>
-      <span className="score-value">{value}</span>
-    </div>
-  )
-}
-
-function EvalView({ data }) {
-  if (!data.n) return <p className="muted">暂无记录</p>
-  const m = data.metrics
-  return (
-    <div className="eval">
-      <div className="metrics">
-        <Metric label="准确率" value={pct(m.accuracy)} />
-        <Metric label="精确率" value={pct(m.precision)} />
-        <Metric label="召回率" value={pct(m.recall)} />
-        <Metric label="F1" value={pct(m.f1)} />
-        <Metric label="引用准确率" value={pct(data.quotation_accuracy.ratio)} />
-      </div>
-      <div className="muted">最优总分阈值 {data.best?.threshold} · 样本 {data.n}</div>
-    </div>
-  )
-}
-
-function Metric({ label, value }) {
-  return (
-    <div className="metric">
-      <span className="metric-label">{label}</span>
-      <span className="metric-value">{value}</span>
-    </div>
-  )
-}
-
-function pct(x) {
-  return `${(x * 100).toFixed(1)}%`
-}
-
 function LogoMark() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -231,6 +70,28 @@ function ClipboardIcon() {
       <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
       <rect x="9" y="3" width="6" height="4" rx="1" />
       <path d="m9 14 2 2 4-4" />
+    </svg>
+  )
+}
+
+function BriefcaseIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+      <path d="M3 13h18" />
+    </svg>
+  )
+}
+
+function ChartIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d="M4 20V4" />
+      <path d="M4 20h16" />
+      <path d="M8 16v-5" />
+      <path d="M13 16V8" />
+      <path d="M18 16v-8" />
     </svg>
   )
 }
