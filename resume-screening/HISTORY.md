@@ -4,6 +4,19 @@
 > 版本 V0.x，每次用户可见变更末位 +1；major 仅当用户明确要求。
 > 每次变更在本文件新增一条，并 bump 版本号。
 
+## V0.12 — 2026-08-17
+
+### Changed
+- 前后端端口解耦到 `.env`：`API_HOST` / `API_PORT` / `WEB_PORT`；新增 `python3 -m backend.cli.api` 启动器
+- 前端 vite 自动从根 `.env` 读 `API_PORT` 派生 `VITE_API_BASE`、读 `WEB_PORT` 设 dev 端口
+
+## V0.11 — 2026-08-17
+
+### Changed
+- AE 工作台视觉升级：OLED 暗色 + JetBrains Mono + 运行绿 accent（设计系统）
+- 左侧菜单栏（当前仅「筛简历」）+ 底部账号 mock（头像 zed）
+- 网络错误提示更清晰（后端未启动时明确提示启动命令）
+
 ## V0.10 — 2026-08-17
 
 ### Fixed
