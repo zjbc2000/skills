@@ -1,6 +1,0 @@
-# 判定阈值（SPEC §3.3）
-# 通用模式：G>=general 且 T>=total；特定模式：S>=specific
-# 运行时可被环境变量覆盖：THRESH_GENERAL / THRESH_SPECIFIC / THRESH_TOTAL（不落盘）
-general: 40
-specific: 20
-total: 45
