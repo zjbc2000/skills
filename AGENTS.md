@@ -53,3 +53,7 @@ For multi-step tasks, state a brief plan:
 ```
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+## 5. Skill 目录维护
+
+新增、删除、改名或移动 skill 时，同步更新 README.md 的「Skill 总览」表（一句话简介 + 路径）。skill 的 description（触发场景）变化时，核对表中对应的一句话是否仍然准确。

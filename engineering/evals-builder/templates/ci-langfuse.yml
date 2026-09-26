@@ -1,0 +1,30 @@
+# Langfuse experiments CI 模板：dataset run 当回归测试，分数低于阈值抛 RegressionError → CI 失败。
+# metadata 带 SHA/PR 链接；schedule 失败自动开 issue。
+name: langfuse-experiment
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    env:
+      LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+      LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+      LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - run: pip install langfuse
+      - run: python run_experiment.py   # experiment() 里分数低于阈值抛 RegressionError
+      - uses: actions/github-script@v7
+        if: failure() && github.event_name == 'schedule'
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title: 'eval 排程失败', body: 'nightly eval failed, see run logs'
+            })

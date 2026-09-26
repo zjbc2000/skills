@@ -1,0 +1,34 @@
+# promptfoo CI 门禁模板（CI gate ≠ eval：这是每次提交的便宜绊线，深度 eval 另配 schedule 全量）
+# 抗 judge 方差：promptfoo 配置里用 repeat: 3 + repeat-min-pass: 2；套件级通过率用下方阈值。
+name: eval-gate
+
+on:
+  pull_request:
+    paths: ["prompts/**", "tests/**"]
+  schedule:
+    - cron: "0 3 * * *"   # 每日全量
+  workflow_dispatch:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npx promptfoo@latest eval -c promptfooconfig.yaml -o results.json -o report.html
+      - name: pass-rate 门禁
+        run: |
+          python3 -c "
+          import json
+          d = json.load(open('results.json'))
+          s = d['results']['stats']
+          rate = s['successes'] / (s['successes'] + s['failures'])
+          print(f'pass rate: {rate:.3f}')
+          exit(0 if rate >= 0.85 else 1)
+          "
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: report.html

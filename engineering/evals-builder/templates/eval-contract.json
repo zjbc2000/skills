@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "_note": "LLM judge 输出契约模板（锚定契约）。judge 只输出本 JSON；每条目 {score, evidence, quotation}；score 量纲必须每档配行为描述（锚定，非 vibe），见 SKILL.md 步骤 2 与 references/metric-packs.md。",
+  "dimensions": [
+    {
+      "name": "dimension_a",
+      "max_score": 3,
+      "score_anchors": {"0": "无/未命中", "1": "弱", "2": "中", "3": "强"},
+      "items": [
+        {"name": "item_1", "score": 0, "evidence": "判定理由（必填）", "quotation": "源文本逐字引用（必填，禁改写/编造）"}
+      ]
+    }
+  ],
+  "verdict": "pass",
+  "red_flags": [
+    {"rule": "红线规则名", "hit": false, "evidence": "判定理由", "quotation": "源文本引用"}
+  ]
+}

@@ -1,0 +1,10 @@
+{"id": "rec-01", "verdict": "pass", "band": 3}
+{"id": "rec-02", "verdict": "pass", "band": 3}
+{"id": "rec-03", "verdict": "fail", "band": 1}
+{"id": "rec-04", "verdict": "pass", "band": 3}
+{"id": "rec-05", "verdict": "fail", "band": 1}
+{"id": "rec-06", "verdict": "pass", "band": 2}
+{"id": "rec-07", "verdict": "pass", "band": 2}
+{"id": "rec-08", "verdict": "pass", "band": 3}
+{"id": "rec-09", "verdict": "fail", "band": 1}
+{"id": "rec-10", "verdict": "pass", "band": 2}

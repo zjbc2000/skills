@@ -1,0 +1,3 @@
+interface:
+  display_name: "Eval Execution"
+  short_description: "Run approved evals and preserve raw evidence"

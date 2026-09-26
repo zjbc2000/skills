@@ -1,0 +1,24 @@
+# DeepEval CI 门禁模板（pytest 原生：metric threshold 违反 → 非零退出 → 构建失败）
+# 小样本纪律：CI 只跑 20-50 条代表性子集，全量放 schedule nightly；.deepeval/cache 缓存省 API 费。
+name: deepeval-gate
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[test]"
+      - run: deepeval test run test_eval.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deepeval-report
+          path: .deepeval/**

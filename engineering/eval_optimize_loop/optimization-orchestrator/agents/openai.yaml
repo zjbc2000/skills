@@ -1,0 +1,3 @@
+interface:
+  display_name: "Optimization Orchestrator"
+  short_description: "Route evidence-backed skill optimization loops"

@@ -1,3 +1,17 @@
 
 # resume-screening 已独立仓库化，不再由父仓库跟踪
 resume-screening/
+
+# book-distiller 已独立成仓库（study/book-distiller），父仓库不再跟踪
+study/book-distiller/
+
+# 个人工作流固化产物 / 私有数据，不具备开源价值
+z-old/
+study/weread-exporter/
+engineering/llm-log/
+
+# macOS
+.DS_Store
+
+# 编辑残留
+*.bak

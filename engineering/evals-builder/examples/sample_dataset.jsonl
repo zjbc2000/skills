@@ -1,0 +1,10 @@
+{"id": "rec-01", "group": "accuracy", "input_ref": "case/01.txt", "predicted": {"verdict": "pass", "score": 82, "band": 3}, "actual": {"verdict": "pass", "score": 85, "band": 3}, "confidence": 0.9}
+{"id": "rec-02", "group": "accuracy", "input_ref": "case/02.txt", "predicted": {"verdict": "pass", "score": 78, "band": 2}, "actual": {"verdict": "pass", "score": 80, "band": 3}, "confidence": 0.8}
+{"id": "rec-03", "group": "accuracy", "input_ref": "case/03.txt", "predicted": {"verdict": "pass", "score": 74, "band": 2}, "actual": {"verdict": "fail", "score": 60, "band": 1}, "confidence": 0.7}
+{"id": "rec-04", "group": "accuracy", "input_ref": "case/04.txt", "predicted": {"verdict": "pass", "score": 88, "band": 3}, "actual": {"verdict": "pass", "score": 90, "band": 3}, "confidence": 0.95}
+{"id": "rec-05", "group": "accuracy", "input_ref": "case/05.txt", "predicted": {"verdict": "fail", "score": 55, "band": 1}, "actual": {"verdict": "fail", "score": 50, "band": 1}, "confidence": 0.85}
+{"id": "rec-06", "group": "tone", "input_ref": "case/06.txt", "predicted": {"verdict": "pass", "score": 70, "band": 2}, "actual": {"verdict": "pass", "score": 72, "band": 2}, "confidence": 0.75}
+{"id": "rec-07", "group": "tone", "input_ref": "case/07.txt", "predicted": {"verdict": "fail", "score": 48, "band": 0}, "actual": {"verdict": "pass", "score": 66, "band": 2}, "confidence": 0.6}
+{"id": "rec-08", "group": "tone", "input_ref": "case/08.txt", "predicted": {"verdict": "pass", "score": 80, "band": 3}, "actual": {"verdict": "pass", "score": 82, "band": 3}, "confidence": 0.9}
+{"id": "rec-09", "group": "resolution", "input_ref": "case/09.txt", "predicted": {"verdict": "fail", "score": 52, "band": 1}, "actual": {"verdict": "fail", "score": 55, "band": 1}, "confidence": 0.8}
+{"id": "rec-10", "group": "resolution", "input_ref": "case/10.txt", "predicted": {"verdict": "pass", "score": 76, "band": 2}, "actual": {"verdict": "pass", "score": 78, "band": 2}, "confidence": 0.7}
