@@ -9,6 +9,7 @@
 | evals-builder | 给 LLM 功能搭一套可回测、可校准、能进 CI 门禁的评估体系 | [engineering/evals-builder](engineering/evals-builder/) |
 | eval_optimize_loop | 评测优化循环：定义标准 → 跑基线 → 对比归因 → 接受/拒绝，含编排器与 3 个专家 skill | [engineering/eval_optimize_loop](engineering/eval_optimize_loop/) |
 | feishu-bot | 飞书（Lark）长连接双向 bot 的开发与排障，含事件层踩坑经验 | [engineering/feishu-bot](engineering/feishu-bot/) |
+| dsh-retro | 复盘跨会话工作轨迹：把本机 agent 会话日志压成十几 KB 摘要，再据此写周报 | [engineering/dsh-retro](engineering/dsh-retro/) |
 | domain-drill | 领域钻探学习法：调研后逐轮讲共识与分歧，再逐题拷问用户 | [study/domain-drill](study/domain-drill/) |
 | feynman | 费曼讲台：用户口喷讲解，agent 只做好奇的学生 | [study/feynman](study/feynman/) |
 
